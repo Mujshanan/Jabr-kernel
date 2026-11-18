@@ -1,3 +1,5 @@
+//! Compile-time and integration checks for the public Kernel API.
+
 use jabr_kernel::{
     DependencyGraph, Envelope, NodeIdAllocator, Port, ResultStore, Revision, Snapshot,
 };
