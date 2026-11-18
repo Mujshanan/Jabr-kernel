@@ -45,7 +45,7 @@ Kernel does not own variable names, scopes, assignments, mathematical values, qu
 
 ## Current implementation audit
 
-The current implementation branch contains a generic DependencyGraph<N>, NodeId, Diagnostic, Span, Envelope<T>, and a generic StateStore<K, V> / StateSnapshot<K, V>. The agreed API still needs to be aligned: add the Revision newtype, define Snapshot<T>, narrow the result store to NodeId keys, and review whether the generic state history/change-set surface is necessary. The older scope/variable-specific state proposal is not the target architecture.
+The current Kernel implementation PR #2 now exposes NodeId, indexed Port, checked Revision, Snapshot<T>, ResultStore<V> keyed by NodeId, generic DependencyGraph, Diagnostic, Span and Envelope<T>. The old generic StateStore<K, V>/StateSnapshot<K, V> surface has been removed from that implementation branch. CI and review are still required; this branch is not a merged release. The older scope/variable-specific state proposal is superseded.
 
 These are audit findings, not claims about the default branch or a merged release. See [development.md](./development.md) for the authoritative development plan and migration sequence.
 
