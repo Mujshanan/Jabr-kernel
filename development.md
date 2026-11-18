@@ -129,9 +129,9 @@ M0 is a contract and repository audit. It establishes scope, resolves contract d
 | `src/port.rs`: `Port` | In scope | Retain |
 | `src/graph.rs`: `DependencyGraph<N>`, `GraphError<N>` | In scope | Retain generic graph operations, including `topological_order`; no scheduler policy |
 | `src/span.rs`: `Span`, `SpanError` | In scope | Retain; UTF-8 byte offsets, half-open range |
-| `Location` representation | In scope, not implemented | Contract fixed: one-based line/column; Unicode-scalar columns; implement in M1 |
+| `src/location.rs`: `Location`, `LocationError` | In scope | Implemented in M1; private validated fields, one-based line and Unicode-scalar column |
 | `src/diagnostic.rs`: `Diagnostic`, `Severity` | In scope | Retain; remove stale state-specific example |
-| `src/envelope.rs`: `Envelope<T>`, `ENVELOPE_SCHEMA_VERSION` | In scope | Retain; reject schema versions other than the current version on deserialization (M1 implementation) |
+| `src/envelope.rs`: `Envelope<T>`, `ENVELOPE_SCHEMA_VERSION` | In scope | M1 custom Serde deserializer rejects schema versions other than the current version |
 | `src/revision.rs` | Out of scope | Remove from Kernel |
 | `src/snapshot.rs` | Out of scope | Remove from Kernel |
 | `src/result_store.rs` | Out of scope | Remove from Kernel |
@@ -147,11 +147,11 @@ No `Cargo.lock`, `rust-toolchain.toml`, or root `.gitignore` was present in the 
 - **Identifiers:** `NodeId`, `NodeIdAllocator`, `IdAllocationError`, `MAX_NODE_ID`.
 - **Ports:** `Port`.
 - **Graph:** `DependencyGraph<N>`, `GraphError<N>`.
-- **Spans and locations:** `Span`, `SpanError`, and `Location { line: u32, column: u32 }` with one-based Unicode-scalar coordinates.
+- **Spans and locations:** `Span`, `SpanError`, `Location`, and `LocationError`; `Location` has private `u32` fields and a validated constructor with one-based Unicode-scalar coordinates.
 - **Diagnostics:** `Diagnostic`, `Severity`.
 - **Envelopes:** `Envelope<T>`, `ENVELOPE_SCHEMA_VERSION`.
 
-The inventory describes the current implementation plus the approved `Location` contract to be implemented in M1. The current code's envelope deserializer still needs the M1 version check.
+The M0 inventory records the intended public API. M1 now implements `Location` and strict envelope-version deserialization; current implementation details are recorded below.
 
 ### 4.3 Out-of-scope removal and behavior-loss inventory
 
@@ -177,16 +177,17 @@ The retained API was compared with its source implementations at the pre-restruc
 | `NodeId`, `NodeIdAllocator`, `IdAllocationError`, `MAX_NODE_ID` | Nonzero `u64` constrained to JavaScript-safe integer range; checked construction; allocator clones share an atomic sequence; `new`, `get`, `allocate`, `Display` | Tests zero/above-max rejection, clone sequence, unsafe Serde rejection; add max-valid and allocator exhaustion boundary tests in M2 |
 | `Port` | Public `node_id: NodeId` and opaque zero-based `index: u32`; `Port::new`; optional Serde | Equality/identity test; serialization coverage should be added in M2 |
 | `DependencyGraph<N>`, `GraphError<N>` | `N: Ord`; add/remove node, add dependency, deterministic prerequisite-first topological order, len/empty; cycle error includes all unresolved nodes (including downstream blocked nodes) | Tests deterministic order, unknown node, and cycle-blocked nodes; add remove/idempotency/len/empty/duplicate-edge tests in M2 |
-| `Span`, `SpanError` | Private UTF-8 byte offsets; `new` rejects reversed ranges; start inclusive/end exclusive; `len` and `is_empty`; optional Serde validates reversed input | Tests normal/empty/reversed ranges and Serde round-trip/rejection; no `Location` implementation yet |
+| `Span`, `SpanError` | Private UTF-8 byte offsets; `new` rejects reversed ranges; start inclusive/end exclusive; `len` and `is_empty`; optional Serde validates reversed input | Tests normal/empty/reversed ranges and Serde round-trip/rejection |
+| `Location`, `LocationError` | Private one-based `u32` line and Unicode-scalar column; `new` rejects zero; accessors `line()` and `column()`; optional Serde validates coordinates | Tests zero boundaries, valid coordinates, and Serde round-trip/rejection |
 | `Diagnostic`, `Severity` | Public `code`, `severity`, `message`, optional `span`; `new` and `with_span`; `Info`/`Warning`/`Error`; optional Serde | Code/message separation and Serde round-trip with span |
-| `Envelope<T>`, `ENVELOPE_SCHEMA_VERSION` | Public `schema_version`, optional `result`, `diagnostics`; `success`, `failure`, `with_diagnostic`; schema constant currently `1`; derived Serde currently accepts arbitrary version values | Tests explicit version and JSON round-trip; unsupported-version rejection is a documented M1 requirement, not yet implemented |
+| `Envelope<T>`, `ENVELOPE_SCHEMA_VERSION` | Public `schema_version`, optional `result`, `diagnostics`; `success`, `failure`, `with_diagnostic`; schema constant currently `1`; custom Serde deserializer rejects every other version | Tests explicit version, JSON round-trip, and rejection of both older and future versions |
 
-`src/lib.rs` now declares and re-exports only the six in-scope modules/types that exist today. The `Location` type is the one planned public addition not yet implemented. No public API implementation was changed by the M0 removal, apart from deleting excluded exports and correcting the stale diagnostic example.
+`src/lib.rs` declares and re-exports only the six in-scope areas, including the M1 `Location` and `LocationError` types. The M0 restructuring itself did not alter retained API behavior; M1 adds the validated location API and strict envelope deserialization.
 
 ### 4.5 Resolved contract decisions
 
-1. **Location convention — resolved:** `Location { line: u32, column: u32 }` uses one-based line and column. Column counts Unicode scalar values from the beginning of the line. It is a human/source coordinate, not a byte offset, UTF-16 index, grapheme count, or rendered visual column. `Span` remains the canonical UTF-8 byte range. Engines derive locations from their source text; Kernel only represents and validates the coordinate. Implement the type in M1.
-2. **Envelope schema compatibility — resolved:** `Envelope<T>` deserialization rejects every schema version other than the current `ENVELOPE_SCHEMA_VERSION`. Do not silently accept future or unsupported historical versions. Version migration belongs in an explicit adapter. Implement the custom validation in M1; current derive-based Serde does not yet enforce it.
+1. **Location convention — resolved and implemented in M1:** `Location` uses private `u32` line and column fields with a validated `new` constructor and read-only accessors. Both coordinates are one-based; column counts Unicode scalar values from the beginning of the line. It is a human/source coordinate, not a byte offset, UTF-16 index, grapheme count, or rendered visual column. `Span` remains the canonical UTF-8 byte range. Engines derive locations from their source text; Kernel only represents and validates the coordinate.
+2. **Envelope schema compatibility — resolved and implemented in M1:** `Envelope<T>` deserialization rejects every schema version other than the current `ENVELOPE_SCHEMA_VERSION`. Do not silently accept future or unsupported historical versions. Version migration belongs in an explicit adapter.
 3. **Graph algorithm boundary — resolved:** retain `DependencyGraph::topological_order()` as a generic graph algorithm. It returns deterministic prerequisite-first order or unresolved nodes when a cycle blocks ordering. It does not identify changed/dirty nodes, choose recalculation scope, schedule work, choose parallelism, invoke engines, retry, store results, or publish changes. Those are Orchestrator responsibilities.
 
 These decisions close the M0 contract questions. They do not authorize implementation of M1 or any engine/Orchestrator integration.
@@ -213,15 +214,19 @@ These decisions close the M0 contract questions. They do not authorize implement
 
 Implement only:
 
-- [ ] Identifiers and documented validity/serialization rules.
-- [ ] Generic opaque ports.
-- [ ] Generic dependency-graph representation and approved primitive operations.
-- [ ] Source spans and locations with explicit offset conventions.
-- [ ] Generic structured diagnostics and stable Kernel diagnostic-code conventions.
-- [ ] Generic versioned envelopes and documented schema-version behavior.
-- [ ] Keep dependencies minimal and domain-neutral.
+- [x] Identifiers and documented validity/serialization rules (retained and audited in M0).
+- [x] Generic opaque ports (retained and audited in M0).
+- [x] Generic dependency-graph representation and approved primitive operations (retained and audited in M0).
+- [x] Source spans and locations with explicit offset conventions; add validated one-based Location.
+- [x] Generic structured diagnostics and stable owner-namespaced Kernel diagnostic-code conventions.
+- [x] Generic versioned envelopes; reject unsupported schema versions during Serde deserialization.
+- [x] Keep dependencies minimal and domain-neutral; no engine or application dependencies introduced.
 
-**Exit criteria:** Kernel exposes only the six approved infrastructure areas and has no engine or application dependencies.
+**Implementation:** src/location.rs adds Location and LocationError; src/envelope.rs replaces derived deserialization with version-checked deserialization. The public API integration test now compiles against Location. Unit tests cover invalid zero coordinates, valid coordinates, valid envelope round-trips, and rejection of older and future envelope versions.
+
+**Validation:** CI is running for this M1 change. M1 is not marked complete until formatting, default tests, Serde tests, Clippy, docs, and Rust 1.75 checks pass.
+
+**Exit criteria:** Kernel exposes only the six approved infrastructure areas, enforces the documented source-location and envelope-version contracts, and has no engine or application dependencies.
 
 ### M2 — Unit and public-contract tests
 
