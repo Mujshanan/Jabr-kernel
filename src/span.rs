@@ -1,15 +1,13 @@
-//! Source-independent text spans and positions.
-use core::fmt;
+//! Source-independent UTF-8 byte spans.
 
-/// Half-open byte range in a source document.
+/// Half-open UTF-8 byte range in a source document.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct Span {
-    /// Inclusive starting byte offset.
-    pub start: usize,
-    /// Exclusive ending byte offset.
-    pub end: usize,
+    start: usize,
+    end: usize,
 }
+
 impl Span {
     /// Constructs a span and rejects reversed ranges.
     pub fn new(start: usize, end: usize) -> Result<Self, SpanError> {
@@ -18,65 +16,90 @@ impl Span {
         }
         Ok(Self { start, end })
     }
-    /// Returns byte length.
+
+    /// Returns the inclusive starting byte offset.
+    pub const fn start(self) -> usize {
+        self.start
+    }
+
+    /// Returns the exclusive ending byte offset.
+    pub const fn end(self) -> usize {
+        self.end
+    }
+
+    /// Returns the span's byte length.
     pub const fn len(self) -> usize {
         self.end - self.start
     }
+
     /// Returns whether the span is empty.
     pub const fn is_empty(self) -> bool {
         self.start == self.end
     }
 }
 
-/// One-based line and UTF-8 byte-column position.
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Location {
-    /// One-based line.
-    pub line: usize,
-    /// One-based UTF-8 byte column, measured from the start of the line.
-    pub column: usize,
-}
-impl Location {
-    /// Constructs a validated one-based location.
-    pub fn new(line: usize, column: usize) -> Result<Self, SpanError> {
-        if line == 0 || column == 0 {
-            return Err(SpanError::ZeroLocation);
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for Span {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(serde::Deserialize)]
+        struct Repr {
+            start: usize,
+            end: usize,
         }
-        Ok(Self { line, column })
+
+        let repr = <Repr as serde::Deserialize>::deserialize(deserializer)?;
+        Self::new(repr.start, repr.end).map_err(serde::de::Error::custom)
     }
 }
 
-/// Invalid source-position data.
+/// Invalid source-span data.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SpanError {
-    /// End offset precedes start offset.
+    /// The exclusive end offset precedes the inclusive start offset.
     Reversed {
-        /// Inclusive start byte offset.
+        /// Inclusive starting byte offset.
         start: usize,
-        /// Exclusive end byte offset.
+        /// Exclusive ending byte offset.
         end: usize,
     },
-    /// Line and column must be one-based.
-    ZeroLocation,
 }
-impl fmt::Display for SpanError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+
+impl core::fmt::Display for SpanError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            Self::Reversed { start, end } => write!(f, "span end {end} precedes start {start}"),
-            Self::ZeroLocation => f.write_str("line and column numbers are one-based"),
+            Self::Reversed { start, end } => {
+                write!(f, "span end {end} precedes start {start}")
+            }
         }
     }
 }
+
 impl std::error::Error for SpanError {}
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
     fn invalid_ranges_are_rejected() {
         assert!(Span::new(8, 3).is_err());
+        let span = Span::new(3, 7).unwrap();
+        assert_eq!(span.start(), 3);
+        assert_eq!(span.end(), 7);
+        assert_eq!(span.len(), 4);
+        assert!(!span.is_empty());
         assert!(Span::new(3, 3).unwrap().is_empty());
-        assert!(Location::new(0, 1).is_err());
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn serde_rejects_reversed_ranges() {
+        assert!(serde_json::from_str::<Span>(r#"{"start":8,"end":3}"#).is_err());
+        let span = Span::new(2, 5).unwrap();
+        let json = serde_json::to_string(&span).unwrap();
+        assert_eq!(serde_json::from_str::<Span>(&json).unwrap(), span);
     }
 }
