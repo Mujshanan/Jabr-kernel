@@ -51,7 +51,12 @@ impl Location {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SpanError {
     /// End offset precedes start offset.
-    Reversed { start: usize, end: usize },
+    Reversed {
+        /// Inclusive start byte offset.
+        start: usize,
+        /// Exclusive end byte offset.
+        end: usize,
+    },
     /// Line and column must be one-based.
     ZeroLocation,
 }
