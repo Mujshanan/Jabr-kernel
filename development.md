@@ -1,159 +1,241 @@
 # Jabr-kernel development plan
 
 **Architecture baseline:** 2026-11-18  
-**Status:** revised ownership contract; implementation alignment and audit in progress.
+**Target:** Jabr Kernel 0.1  
+**Status:** Implementation plan aligned with the locked architecture contract  
+**Implementation branch:** `feat/kernel-core-implementation-0.1`
 
-This file is the authoritative Kernel development plan. It supersedes earlier proposals that made Kernel responsible for variable/scope assignment state or a cross-engine recalculation API.
+This document translates the approved Jabr architecture into an implementation and validation plan for Kernel 0.1. The architecture ownership boundaries are fixed for this milestone. This plan does not authorize changes to those boundaries, engine integration, Orchestrator implementation, or UI integration.
 
-## 1. System boundaries
+## 1. Locked system architecture
 
-- **Kernel** provides generic identity, revision, snapshot, result-storage, graph, diagnostic and source-span primitives.
-- **Math** owns mathematical values, quantities, units, parsing, AST, evaluation, and mathematical dependency semantics.
-- **Table** owns table structure, stable row/column identity, authored cell text and table metadata. It does not parse cell expressions or store Math evaluation values.
-- **Diagram** owns its renderer-independent diagram model, geometry and diagram-specific operations.
-- **Engine** (planned as a separate repository; not yet present in the connected repository set) constructs worksheet graph nodes, binds Math/Table/Diagram capabilities, schedules evaluation, and owns calculation-result lifecycle.
-- **UI** owns the complete worksheet experience and authored BlockSuite/Yjs document. It persists source and presentation choices, not calculated results.
+Jabr is developed as independently maintained repositories with explicit, versioned contracts:
 
-Dependency direction:
+- **Kernel:** identifiers, ports, generic dependency-graph primitives, source spans, diagnostics, and versioned envelopes.
+- **Math:** mathematical values and quantities, units, expression syntax, parsing, AST, evaluation, mathematical types, scopes, and mathematical dependency semantics.
+- **Table:** table document model, cell identity and content, formula text, and table-specific operations.
+- **Diagram:** diagram document model, geometry, drawing/editing operations, and rendering semantics.
+- **Orchestrator:** graph construction from engine-provided information, cross-engine evaluation scheduling, result storage, caching, and change publication.
+- **UI:** unified document experience, worksheet composition, editing interactions, presentation, and UI-side document integration.
+
+The dependency direction is:
 
 ```text
-Jabr-UI -> Jabr-engine -> { Jabr-kernel, Jabr-math, Jabr-table, Jabr-diagram }
+                 Jabr-kernel
+                /     |     \
+               v      v      v
+             Math    Table  Diagram
+                \     |     /
+                 v    v    v
+                  Orchestrator
+                       |
+                       v
+                     Jabr-UI
 ```
 
-No circular dependencies. No shared cross-repository Cargo workspace or monorepo.
+Kernel must remain domain-neutral and must not depend on Math, Table, Diagram, Orchestrator, or UI. Math, Table, and Diagram remain independently developable and testable. The Orchestrator composes their capabilities; the UI consumes the Orchestrator's application-facing contract rather than importing engine internals directly.
 
-## 2. Kernel's approved minimal API
+Independent repositories remain the development model. Do not introduce a monorepo or shared cross-repository Cargo workspace as part of Kernel 0.1.
 
-### 2.1 Identity
+## 2. Kernel 0.1 scope
 
-- NodeId is the stable generic identity used by Kernel graph and result-store primitives.
-- Port is a generic endpoint/port identity. It must not encode worksheet, table, expression, or math semantics.
-- Engine decides how authored blocks, table columns, or other calculation units map to nodes and ports.
+Kernel owns exactly these six areas:
 
-### 2.2 Revision
+1. Identifiers.
+2. Ports.
+3. Generic dependency-graph primitives.
+4. Source spans and locations.
+5. Structured diagnostics.
+6. Versioned communication envelopes.
 
-Provide Revision(u64) as a strongly typed monotonic counter. For JSON transport, serialize it as a decimal string so JavaScript consumers preserve the full u64 precision.
+These are shared infrastructure contracts, not domain engines or application workflows.
 
-- Revisions increase within one Engine document/session.
-- A restore or undo of authored content creates a new revision; it never rewinds the counter.
-- Revision exhaustion is an explicit error; do not wrap.
-- UI can use revisions to reject stale responses.
+### 2.1 Identifiers
 
-Kernel exposes the primitive; Engine owns the revision lifecycle and decides when a calculation/document change advances it.
+- Provide stable, domain-neutral identifiers suitable for references in shared infrastructure.
+- Define and document validity, construction, equality, ordering, hashing, and serialization behavior where applicable.
+- If identifiers are serialized as JSON numbers, enforce a range that JavaScript can represent exactly; otherwise explicitly specify the chosen wire representation.
+- Kernel does not decide how an engine maps authored blocks, table cells, diagram objects, or mathematical expressions to identifiers.
 
-### 2.3 Snapshot
+### 2.2 Ports
 
-Provide the agreed generic shape:
+- Provide generic endpoint identity associated with a Kernel identifier.
+- Keep port meaning opaque to Kernel.
+- Do not encode worksheet, expression, table, diagram, input/output semantics, or engine-specific metadata into the shared port type unless a future architecture review explicitly approves it.
+- The owning engine defines how its ports are interpreted.
 
-```rust
-pub struct Snapshot<T> {
-    pub revision: Revision,
-    pub payload: T,
-}
-```
+### 2.3 Generic dependency-graph primitives
 
-A snapshot is a complete state payload for persistence/load and result publication, not an incremental update. Keep it aligned with the existing versioned Envelope conventions so saved state and load-time results share a predictable serialization boundary. Do not introduce a competing wire format or duplicate schema-version fields without an explicit API decision.
+- Provide a domain-neutral graph representation and only the generic operations required to inspect and mutate that representation.
+- Kernel must not construct the cross-engine worksheet graph from Math, Table, or Diagram content.
+- Kernel must not interpret formulas or determine mathematical dependencies.
+- Kernel must not own evaluation scheduling, recalculation order as an application policy, invalidation policy, result propagation, caching, or change publication.
+- The Orchestrator constructs the graph from engine-provided dependency information and owns evaluation scheduling and cross-engine coordination.
+- Any generic graph algorithms included in Kernel must remain data-structure operations, with their behavior and limits explicitly documented. They must not silently become an evaluation scheduler.
 
-### 2.4 ResultStore
+### 2.4 Source spans and locations
 
-Provide ResultStore<V> keyed by NodeId.
+- Provide source-independent span and location primitives.
+- Define offset units, range convention, and line/column convention explicitly.
+- The initial text-span convention is a half-open range: start inclusive, end exclusive. If offsets are byte-based, document the encoding and ensure consumers use the same convention.
+- Kernel validates generic span structure; the owning engine interprets spans against its source document or expression text.
+- Kernel does not implement parsers or domain-specific source mapping.
 
-- Kernel stores and retrieves opaque values only.
-- Kernel does not define MathValue, Quantity, units, errors-as-values, variable names, scopes, or evaluation behavior.
-- Engine chooses the value type and owns when results are inserted, replaced, invalidated, or removed.
-- Table never depends on or sees this store.
-- Keep any change notification contract generic and separate from complete snapshots.
+### 2.5 Diagnostics
 
-Do not generalize the public API into arbitrary variable/scope transactions unless a demonstrated non-domain-specific use case requires it.
+- Provide a generic structured diagnostic representation.
+- Machine-readable codes are stable public API. Codes are namespaced by their owning crate, for example `kernel.*`, `math.*`, `table.*`, and `diagram.*`.
+- The crate that emits a code owns its meaning. The Orchestrator may transport and aggregate diagnostics but must not redefine domain semantics.
+- Human-readable messages are not machine-readable identifiers and may evolve under the compatibility policy.
+- Kernel must not encode Math parser errors, Table validation rules, Diagram rendering errors, or Orchestrator scheduling policy as Kernel-owned domain concepts.
 
-### 2.5 Dependency graph
+### 2.6 Versioned envelopes
 
-Kernel provides generic graph structure and deterministic graph algorithms. It does not decide what a node means, parse dependencies, schedule recalculation, propagate domain errors, or decide worksheet invalidation policy. Engine constructs and mutates the graph and owns cycle/error interpretation at the worksheet level.
+- The initial transport format is JSON carried in a versioned `Envelope`.
+- The envelope provides an explicit schema version and a stable place for operation results and diagnostics.
+- Kernel owns the generic envelope shape and its serialization contract; it does not own operation execution or domain result types.
+- Exact field names, optionality, compatibility behavior, error/result representation, and TypeScript type-generation tooling must be explicitly documented before being treated as stable.
+- Do not add duplicate snapshot/revision protocols or engine-specific payload models to the Kernel envelope.
 
-### 2.6 Diagnostics and spans
+## 3. Explicit exclusions
 
-- Diagnostics carry stable, owner-namespaced codes and human-readable messages.
-- Source spans are half-open UTF-8 byte offsets; Math owns their interpretation against expression text. Any line/column projection must define columns as UTF-8 byte columns.
-- Kernel must not encode Math parser diagnostics or Table-specific validation rules.
+The following are not Kernel responsibilities and must not be implemented in Kernel 0.1:
 
-## 3. Audit of current implementation
+- Variable or assignment state, scopes, namespaces, and state lifecycle.
+- Revision counters, revision lifecycle, change tracking, snapshots, or state history.
+- Calculation-result storage, result invalidation, or result caching.
+- Cross-engine graph construction or dependency interpretation.
+- Evaluation scheduling, recalculation loops, or orchestration.
+- Change publication, subscriptions, or application event coordination.
+- Mathematical values, quantities, units, parsing, AST, evaluation, or mathematical diagnostics.
+- Table models, cells, formula text, or table-specific operations.
+- Diagram models, geometry, drawing operations, or rendering.
+- Worksheet/document ownership, BlockSuite/Yjs integration, UI behavior, or persistence policy.
 
-The current implementation branch has:
+Ownership of these excluded responsibilities remains with the relevant domain engine, Orchestrator, or UI as defined in Section 1. An implementation convenience is not grounds for moving one of these responsibilities into Kernel.
 
-| API | Audit result |
+## 4. Implementation audit and required alignment
+
+The implementation must be audited against the six-area scope above. The presence of code in the branch does not make that code part of the approved Kernel contract.
+
+The branch was previously observed to contain additional modules/types for revisions, snapshots, and result storage. These are outside the locked Kernel scope:
+
+| Existing or proposed item | Required disposition |
 | --- | --- |
-| NodeId and allocator | Implemented in PR #2; retain as generic identity |
-| Port | Implemented in PR #2 as a node ID plus opaque index |
-| Revision | Implemented in PR #2 with checked monotonic progression |
-| Snapshot<T> | Implemented in PR #2 as a complete revisioned payload |
-| ResultStore<V> | Implemented in PR #2 and keyed only by NodeId |
-| DependencyGraph<N> | Generic graph retained; Engine decides graph contents and semantics |
-| Diagnostic / Span | Generic primitives retained; domain codes remain owner-defined |
-| Envelope<T> | Existing versioned transport shape; Snapshot is composable as Envelope<Snapshot<T>> |
-| StateStore<K, V> / StateSnapshot<K, V> | Removed from the public module surface in PR #2 |
-| Scope/Variable state proposal | Superseded; do not merge or extend as the Kernel architecture |
+| Identifier and allocator | Retain if they satisfy the identifier contract |
+| Port | Retain if it remains generic and opaque |
+| Dependency graph | Retain only generic graph representation and operations |
+| Span and location | Retain if offset and location conventions are explicit |
+| Diagnostic | Retain as a generic structured diagnostic |
+| Envelope | Retain as a generic versioned envelope |
+| Revision / revision lifecycle | Remove from Kernel's public API and Kernel 0.1 scope |
+| Snapshot / snapshot history | Remove from Kernel's public API and Kernel 0.1 scope |
+| ResultStore / calculation-result storage | Remove from Kernel's public API and Kernel 0.1 scope |
+| Scheduling, caching, change publication | Do not implement in Kernel; Orchestrator owns these |
 
-PR #2 has been updated to the narrower API. Its Rust formatting, default/Serde tests and Clippy still require fresh CI evidence before the milestone can be marked verified.
+Before Kernel 0.1 can pass architectural validation, remove out-of-scope modules, exports, tests, documentation claims, and dependencies that exist solely to support those excluded responsibilities. Do not move their implementation into another repository as part of this Kernel-only milestone; that would be separate work and requires its own authorization.
 
-## 4. Development milestones
+## 5. Development milestones
 
-### M0 — Contract and source audit
+### M0 — Contract and repository audit
 
-- [x] Inspect existing Kernel API and active implementation/documentation branches.
-- [x] Identify conflict between the older variable-state proposal and the revised generic infrastructure boundary.
-- [x] Identify current StateStore, StateSnapshot, Envelope, graph, ID, diagnostic and span APIs.
-- [ ] Record the final Envelope / Snapshot<T> serialization composition in a small compile-time API test.
-- [x] Decide the initial boundary for incremental changes: Kernel 0.1 exposes complete snapshots and opaque result storage only; Engine owns invalidation and any orchestration-specific change events.
+- [ ] Confirm this plan matches the locked six-responsibility Kernel contract.
+- [ ] Inventory all public modules, types, exports, dependencies, tests, and documentation.
+- [ ] Classify each item as in-scope, out-of-scope, or requiring an explicit contract decision.
+- [ ] Record the exact public API expected for the six in-scope areas.
+- [ ] Identify all revision, snapshot, state-management, result-store, caching, scheduling, and change-publication code for exclusion from Kernel 0.1.
 
-**Exit:** public API contract is explicit and no Kernel type encodes Math, Table, worksheet, or Engine concepts.
+**Exit criteria:** a reviewed scope inventory exists; no ambiguous ownership is silently treated as approved.
 
 ### M1 — Minimal Kernel primitives
 
-- [x] Finalize NodeId and generic Port.
-- [x] Add Revision(u64) with checked monotonic progression.
-- [x] Implement Snapshot<T> { revision, payload }.
-- [x] Implement ResultStore<V> keyed only by NodeId.
-- [x] Keep generic DependencyGraph without recalculation policy.
-- [x] Preserve generic Diagnostic and Span.
-- [x] Remove the old StateStore/StateSnapshot public module surface from PR #2.
+Implement only:
 
-**Implementation status:** the above API work is present in PR #2; verification remains pending because no workflow run was returned for its latest commit.
+- [ ] Identifiers and their documented validity/serialization rules.
+- [ ] Generic opaque ports.
+- [ ] Generic dependency-graph representation and approved primitive operations.
+- [ ] Source spans and locations with explicit offset conventions.
+- [ ] Generic structured diagnostics and stable Kernel diagnostic-code conventions.
+- [ ] Generic versioned envelopes and their documented schema-version behavior.
 
-**Exit:** the crate exposes only the minimal generic contract and compiles without any Jabr domain dependency.
+- [ ] Remove out-of-scope revision, snapshot, result-store, state-management, and orchestration APIs from Kernel's public surface.
+- [ ] Keep dependencies minimal and domain-neutral.
 
-### M2 — Contract and serialization tests
+**Exit criteria:** Kernel exposes only the six approved infrastructure areas and has no engine or application dependencies.
 
-- [x] Compile-time API integration test for the public generic signatures.
-- [x] Snapshot clone behavior for owned payloads and Envelope/Snapshot Serde round-trip. Deep isolation for shared-mutable payloads remains the payload owner's responsibility.
-- [x] Revision monotonicity and overflow tests. Stale-response rejection is an Engine/UI contract, not a Kernel responsibility.
-- [x] ResultStore insert/replace/remove/missing-key tests.
-- [x] Deterministic topological order, unknown-node and cycle-blocked-node tests.
-- [x] Diagnostic and validated Span serialization round-trip tests.
-- [x] Default and Serde-feature CI; formatting, Clippy, rustdoc and Rust 1.75 MSRV checks.
+### M2 — Unit and public-contract tests
 
-**Exit:** Kernel behavior is deterministic, tested and independently consumable. Cross-repository stale-response and payload-isolation guarantees remain Engine integration tests.
+- [ ] Identifier construction, invalid values, range boundaries, ordering, hashing, and allocator edge cases.
+- [ ] Port identity, equality, and serialization behavior.
+- [ ] Graph insertion/removal, duplicate operations, unknown references, deterministic behavior, and cycle behavior for any included generic graph algorithm.
+- [ ] Span boundaries, empty spans, reversed ranges, and documented offset conventions.
+- [ ] Diagnostic structure, code namespace conventions, optional span, and serialization.
+- [ ] Envelope schema version, result/diagnostic representation, serialization round-trip, and malformed/unsupported-version handling where applicable.
+- [ ] External-consumer compile test using only the public Kernel API.
+- [ ] Compile-time checks that examples use no Math, Table, Diagram, Orchestrator, or UI types.
 
-### M3 — Cross-repository integration contracts
+**Exit criteria:** the six public contracts are independently testable, documented, and consumable without domain dependencies.
 
-- [ ] Publish a tagged Kernel API version.
-- [ ] Add consumer-side compile tests in Math and Engine.
-- [ ] Verify Engine can instantiate ResultStore<MathValue> without Kernel depending on Math.
-- [ ] Verify Table has no dependency on Math or Kernel result storage.
-- [ ] Verify UI consumes revisioned Engine snapshots/updates without persisting derived results to Yjs.
+### M3 — Architectural and repository validation
 
-**Exit:** each repository remains independently buildable and the boundaries are proven by compile-time tests.
+- [ ] Audit Cargo dependencies and public exports for domain/application leakage.
+- [ ] Confirm no revision, snapshot, result-storage, state-lifecycle, scheduling, caching, or change-publication responsibility remains in Kernel.
+- [ ] Confirm Kernel does not parse or evaluate formulas or interpret engine dependency semantics.
+- [ ] Confirm all public types have appropriate API documentation.
+- [ ] Confirm the repository builds and tests independently without a shared workspace.
+- [ ] Review the public API for accidental commitments beyond Kernel 0.1.
 
-## 5. Non-goals
+**Exit criteria:** the implementation conforms to the architecture contract, not merely to its own unit tests.
 
-- Mathematical variables, assignments, scopes, parsing or evaluation.
-- Math values, quantities, dimensions, units or conversion.
-- Table cell text parsing or table-specific data semantics.
-- Worksheet graph construction, dependency interpretation or recalculation scheduling.
-- Result lifecycle policy beyond generic storage operations.
-- BlockSuite/Yjs document ownership, collaboration or undo/redo.
-- Cross-engine orchestration or an application API.
-- A monorepo or shared Cargo workspace.
+### M4 — Release readiness and Kernel gate
 
-## 6. Change policy
+- [ ] Run formatting checks.
+- [ ] Run tests with default features.
+- [ ] Run tests for every supported optional feature, including serialization.
+- [ ] Run Clippy with warnings denied.
+- [ ] Run rustdoc/documentation checks.
+- [ ] Verify the declared Rust MSRV against the actual code and CI toolchain.
+- [ ] Confirm a clean build and clean working tree.
+- [ ] Confirm all required GitHub checks pass.
+- [ ] Publish a concise Kernel 0.1 API and compatibility note after review.
 
-Any change to these ownership boundaries requires an explicit architecture review. Keep implementation changes focused, independently tested, and in pull requests. Do not merge any open Kernel PR as part of this documentation update.
+**Exit criteria:** Kernel 0.1 is reviewed, validated, and explicitly approved as complete.
+
+## 6. Integration gates — not part of this implementation phase
+
+No engine integration or Orchestrator implementation begins until M0–M4 are complete and the Kernel milestone is explicitly approved.
+
+After that approval, integration planning may define separate work for:
+
+1. Engine-consumer contract tests for Math, Table, and Diagram.
+2. Orchestrator graph construction from engine-provided dependency information.
+3. Orchestrator evaluation scheduling, result storage, caching, and change publication.
+4. UI consumption of the Orchestrator's application-facing contract.
+
+The first end-to-end slice may then be `x = 3 m`: Math parses and evaluates the expression; Kernel supplies only the generic infrastructure it owns; Orchestrator coordinates the operation and publishes the result through the versioned envelope; UI renders the response. This future slice does not authorize adding mathematical, state-lifecycle, result-storage, or scheduling responsibilities to Kernel.
+
+## 7. CI and quality requirements
+
+The Kernel CI should validate the crate independently and should include, as applicable:
+
+- `cargo fmt --all -- --check`
+- `cargo test --all-targets`
+- `cargo test --all-targets --all-features`
+- `cargo clippy --all-targets --all-features -- -D warnings`
+- `cargo doc --no-deps` (with warnings treated according to the documented policy)
+- A check against the declared MSRV.
+
+The CI matrix and dependency versions must be explicit. A passing local test run is useful evidence but does not replace required GitHub checks. Do not claim the milestone is verified until the relevant checks have actually completed successfully.
+
+## 8. Change and approval policy
+
+- Preserve the six Kernel responsibilities and the ownership boundaries in this plan.
+- Keep implementation changes limited to Kernel 0.1.
+- Do not modify Math, Table, Diagram, Orchestrator, or UI as part of this phase.
+- Do not merge an implementation PR merely because the documentation plan is updated.
+- Any proposed change to ownership, dependency direction, public wire compatibility, or Kernel scope requires explicit architecture review before implementation.
+- Completion of M4 is a gate, not automatic authorization to begin integration. Explicit Kernel milestone approval is required.
+
+---
+
+**Controlling rule:** Kernel first, and Kernel only. Complete and validate the six-area Kernel foundation before touching engine integration or Orchestrator implementation.
