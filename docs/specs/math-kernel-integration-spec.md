@@ -26,9 +26,9 @@ The previously proposed expanded Kernel model (`KernelStateRead`, `KernelStateWr
 | Concrete storage and graph algorithms | `jabr-kernel` | Implements public contract |
 | Mathematical syntax, parser, AST, symbols, values, quantities, units and evaluation | Jabr Math | Math-owned domain model |
 | Expression-local reference extraction | Jabr Math | Returns symbolic references, not Kernel graph mutations |
-| Worksheet node mapping and cross-engine graph construction | Jabr Engine | Maps domain references to generic IDs/ports |
+| Sequential worksheet interpretation and execution environment | Jabr Engine | Executes authored blocks/statements in document order |
 | Document/node/source revisions, authored/derived lifecycle, result cache, snapshots and history of calculation state | Jabr Engine | Engine-owned lifecycle |
-| Dirty propagation, affected-node selection, scheduling and recalculation orchestration | Jabr Engine | Engine-owned policy |
+| Worksheet rerun, execution batching and recalculation orchestration | Jabr Engine | V1 reruns the worksheet from the top; no dependency scheduler |
 | Authored document, collaboration, persistence and authored undo/redo | Jabr-UI / BlockSuite / Yjs | Durable authored content |
 | Result presentation and transient rendering cache | Jabr-UI | Not a second calculation authority |
 
@@ -38,7 +38,7 @@ The previously proposed expanded Kernel model (`KernelStateRead`, `KernelStateWr
 Jabr-UI (authored document + presentation)
         |
         v
-Jabr Engine (worksheet state, graph mapping, revisions,
+Jabr Engine (worksheet state, sequential interpreter,
              result lifecycle, scheduling, orchestration)
         |                  |
         v                  v
@@ -158,133 +158,124 @@ Envelope version and payload/domain version are separate. Unsupported versions f
 
 ## 5. Math facade contract
 
-Math exposes parsing, analysis and evaluation. It does not expose Kernel storage, mutate the worksheet graph, schedule dependent nodes or commit results.
+Math parses and evaluates individual mathematical expressions against explicit owned bindings. It does not own worksheet execution order, variable storage, assignment lifecycle, worksheet scopes, scheduling or result commits.
 
-Math returns symbolic references from its AST. It does not resolve those references to Kernel `NodeId` values; Engine owns that mapping.
+Jabr Engine is the sequential worksheet interpreter. It determines which statement executes next, which variables are available, and which values are supplied to Math. Math does not request missing worksheet dependencies or maintain a reactive worksheet dependency graph.
 
-Proposed conceptual DTOs:
+### 5.1 Analysis and expression evaluation
+
+Analysis may return syntactic symbol references and source spans for diagnostics and editor assistance. In V1 these references are informational; they do not create runtime graph edges or make inactive branches mandatory dependencies.
+
+Conditional expressions are lazy: evaluate the condition, select one branch, and evaluate only that branch. An inactive branch does not require runtime bindings and cannot produce runtime evaluation errors. The complete expression must still be syntactically valid.
 
 ```rust
-pub struct SymbolReference {
-    pub name: String,
-    pub span: Option<Span>,
-}
-
+pub struct SymbolReference { pub name: String, pub span: Option<Span> }
 pub struct MathAnalysis {
     pub references: Vec<SymbolReference>,
     pub diagnostics: Vec<MathDiagnostic>,
-    // Parsed AST remains Math-owned.
 }
-
-pub struct ResolvedBinding {
-    pub name: String,
-    pub value: MathValue,
-}
-
-pub struct EvaluationContext {
+pub struct ResolvedBinding { pub name: String, pub value: MathValue }
+pub struct ExpressionEvaluationRequest {
+    pub request_id: String,
+    pub source: String,
     pub bindings: Vec<ResolvedBinding>,
-    pub source_revision: String,
-    pub input_fingerprint: String,
+    pub options: EvaluationOptions,
 }
-
-pub struct MathEvaluation {
+pub struct ExpressionEvaluationResponse {
+    pub request_id: String,
     pub value: Option<MathValue>,
     pub diagnostics: Vec<MathDiagnostic>,
-    pub source_revision: String,
-    pub input_fingerprint: String,
 }
-
-pub trait MathEngine {
+pub trait MathFacade {
     fn analyze(&self, source: &str) -> MathAnalysis;
-    fn evaluate(
-        &self,
-        source: &str,
-        context: &EvaluationContext,
-    ) -> MathEvaluation;
+    fn evaluate(&self, request: &ExpressionEvaluationRequest)
+        -> ExpressionEvaluationResponse;
 }
 ```
 
-The exact facade signatures, AST DTO policy and value serialization remain Math-owned and must be frozen in the Math facade contract. The example uses owned, serializable data; no Kernel trait object or borrowed Kernel state crosses the boundary.
+These are conceptual shapes, not frozen public types. Exact value serialization, source formats, spans, numeric policies and DTO versioning remain Math-owned.
 
-### 5.1 Evaluation purity
+### 5.2 Evaluation purity
 
-For a fixed source, explicit context and compatible Math engine version, evaluation must not mutate external worksheet state. It may return diagnostics and a proposed value. Engine decides whether that result is still current and whether to publish it.
+For fixed expression source, explicit bindings, options and compatible Math semantic version, evaluation must not mutate Engine state. It returns a proposed value and diagnostics. Engine owns assignment application and decides whether the result belongs to the current execution attempt.
 
-Math may use Kernel's generic `NodeId`, `Span` or `Envelope` types where useful, but its parser and evaluator must remain independently testable without a running Kernel implementation.
+### 5.3 Conditional semantics
 
-## 6. Engine orchestration and recalculation lifecycle
+Math evaluates only the selected branch. Syntactic references in inactive branches are not runtime dependencies. A selected branch referencing a variable unavailable in the current sequential environment returns an unresolved-symbol diagnostic. Math does not issue dependency requests.
 
-**Jabr Engine owns recalculation triggering and orchestration.** Kernel provides generic graph operations; Math provides expression analysis and evaluation.
+## 6. Engine sequential worksheet interpreter
+
+**Jabr Engine owns worksheet interpretation and execution.** V1 uses deterministic top-to-bottom execution, not a reactive dependency graph.
 
 ```text
-BlockSuite/Yjs authored change
+BlockSuite/Yjs authored worksheet
           |
           v
-Jabr-UI sends authored source + block identity
+Jabr-UI submits ordered authored blocks
           |
           v
-Jabr Engine records authored state and advances Engine revisions
+Engine creates execution generation and fresh environment
           |
           v
-Math analyzes source and returns symbolic references
+Engine reads next statement/block
           |
           v
-Engine resolves references to worksheet nodes/ports
+Engine dispatches statement; supplies current bindings to Math
           |
           v
-Engine updates the generic Kernel dependency graph
+Math returns expression value and diagnostics
           |
           v
-Kernel returns generic graph/cycle/topological information
+Engine records attempt and applies successful assignment
           |
           v
-Engine selects affected nodes and schedules evaluation
+Engine continues through worksheet in document order
           |
           v
-Engine constructs owned immutable EvaluationContext
+Engine publishes execution snapshot and block outcomes
           |
           v
-Math evaluates and returns value + diagnostics
-          |
-          v
-Engine validates source/input revisions and engine version
-          |
-          v
-Engine commits/publishes accepted derived state in its result lifecycle
-          |
-          v
-Jabr-UI renders revision-associated derived output
+Jabr-UI renders derived output
 ```
 
-Normative rules:
+Normative V1 rules:
 
-1. UI submits authored source and stable block identity; it does not parse mathematical dependencies.
-2. Engine owns authored worksheet calculation records, source/document/node revisions and calculation generations.
-3. Math parses and extracts expression-local symbolic references.
-4. Engine resolves symbols, maps them to generic Kernel identities and updates graph edges.
-5. Kernel offers generic graph operations and prerequisite-first topological ordering.
-6. Engine computes the affected set, detects worksheet-level cycles and schedules evaluation.
-7. Engine resolves prerequisite values and passes an immutable owned context to Math.
-8. Math returns proposed values and Math-owned diagnostics; it never mutates Kernel or Engine state.
-9. Engine rejects a result if its source revision, input fingerprint, calculation generation or relevant engine version no longer matches.
-10. Engine publishes accepted results and owns cache validity/invalidation.
-11. UI receives result updates and keeps only a transient presentation cache. It does not persist calculated values in Yjs.
+1. Engine executes authored worksheet statements/blocks in document order, from top to bottom.
+2. A variable becomes available only after its assignment executes successfully.
+3. Forward references are prohibited in V1. A reference to a variable not yet defined is unresolved at that point.
+4. Engine owns the execution environment, variable bindings, assignment application, ordering and execution generation.
+5. Math owns parsing and evaluation of individual expressions against explicit bindings.
+6. Conditional expressions and statement blocks execute only their selected branches.
+7. A successful assignment updates the environment for subsequent statements; it does not mutate earlier captured values or snapshots.
+8. A failed statement records diagnostics and does not partially apply its assignment. Independent later statements may continue; statements requiring unavailable values are blocked or report unresolved symbols.
+9. Engine records per-statement/per-block outcomes and an immutable execution snapshot.
+10. An authored change triggers a full top-to-bottom rerun using a fresh environment. Dependency-based incremental recalculation is not part of V1.
+11. Engine validates execution generation and authored input identity before publishing results. Late responses from obsolete executions are rejected.
+12. Kernel graph primitives are not used as the V1 worksheet scheduler. They remain generic infrastructure for other uses and possible future optimization.
 
-No Kernel change event, Math callback subscription or Kernel-owned scheduler is required by this design.
+### 6.1 Error isolation
 
-## 7. Authored/derived state and revision ownership
+A failed statement must not corrupt the execution environment or prevent independent later statements from running. A later statement requiring a variable whose assignment failed receives an explicit unavailable/unresolved diagnostic. Engine must not silently substitute a value from a previous execution.
 
-This integration contract does not define a Kernel `CellState`. The lifecycle is owned by Engine and UI:
+### 6.2 Execution boundary
 
-- BlockSuite/Yjs persists authored source and user-authored preferences.
-- Engine maintains calculation records that associate authored inputs, dependency/input fingerprints, revisions, calculation generation, result and diagnostics.
-- A node may retain authored source while having a separate derived result or error. Recalculation never overwrites authored content.
-- Engine owns document, node/source and calculation-generation revisions. Their exact semantics and snapshot policy belong to the Engine lifecycle contract.
-- A no-op result may avoid a visible derived-state update, but calculation attempts still have their own generation/request identity.
-- Undo/redo restores authored document content through BlockSuite/Yjs. It creates a new Engine-observed input state and recalculates; it does not rewind monotonic Engine revisions.
-- Engine may snapshot its calculation lifecycle for recovery, but Kernel does not own or serialize worksheet snapshots.
+Engine interprets worksheet order and control flow; Math evaluates expressions. The underlying Calcpad implementation remains behind a replaceable adapter and must not dictate Jabr's worksheet semantics.
 
-Detailed authored/derived lifecycle and cache rules are normative in `dual-zone-block-architecture.md` for UI-visible behavior and must be completed in the future Jabr Engine specification before Engine implementation.
+## 7. Authored state, execution environment and result lifecycle
+
+- BlockSuite/Yjs persists authored source, block order and user-authored preferences.
+- Engine creates a fresh execution environment for each worksheet execution generation.
+- Engine owns variable definitions, bindings, assignment updates, worksheet scopes/control flow, per-block outcomes, source revisions, execution generations and snapshots.
+- Math receives immutable owned values for each expression and cannot mutate Engine state.
+- Successful assignments update the environment for subsequent statements only.
+- Failed assignments do not overwrite the last successful execution snapshot.
+- Engine records failed attempts and diagnostics separately. UI may retain the last successful output only when explicitly marked stale.
+- Undo/redo restores authored content; Engine observes a new input state and starts a new execution. Revisions and generations never rewind.
+- V1 recalculation starts from the first executable statement. Reuse of prior execution state is not part of the correctness model.
+
+Variable reassignment, scope rules, immutable snapshot contents and transaction semantics must be reviewed in the Engine contract before implementation freeze.
+
+
 
 ## 8. Versioning and compatibility
 
@@ -299,34 +290,41 @@ Detailed authored/derived lifecycle and cache rules are normative in `dual-zone-
 ## 9. Acceptance criteria
 
 ### Kernel API
-- Public API crate contains only generic identity, ports, graph, spans, diagnostics and envelope contracts.
+- Public API contains only generic identity, ports, graph, spans, diagnostics and envelope contracts.
 - Kernel has no dependency on Math, Engine, Table, Diagram, BlockSuite, Yjs or UI.
-- No variable state, revision counter, result store, snapshot/history or recalculation scheduler is exported from Kernel.
-- Graph tests prove edge direction, deterministic prerequisite-first ordering, missing-node behavior and cycle reporting.
-- Envelope and diagnostic/span tests prove round-trip/version rejection and documented coordinate semantics.
+- No variable state, revision counter, result store, snapshot/history or worksheet scheduler is exported from Kernel.
+- Generic graph, envelope and diagnostic tests verify their documented behavior.
 
 ### Math
-- Math builds without importing `jabr-kernel` implementation modules.
+- Math builds without importing Kernel implementation modules.
 - Parser/AST/evaluator tests run without a Kernel service.
-- Reference extraction returns symbolic names and source spans, not worksheet NodeIds.
-- Evaluation consumes owned explicit bindings and returns values/diagnostics without mutating external state.
+- Analysis returns syntactic references and source spans without creating worksheet graph edges.
+- Conditional expressions evaluate lazily and never evaluate inactive branches.
+- Evaluation consumes explicit bindings and returns values/diagnostics without mutating external state.
+- Math does not issue worksheet dependency requests or own worksheet variable state.
 - Unit and numeric domain types remain Math-owned.
 
 ### Engine integration
-- Engine maps authored block identity and Math references to generic NodeId/Port.
-- Engine owns revisions, result lifecycle, dirty policy and scheduling.
-- Engine uses Kernel graph operations but does not delegate scheduling to Kernel.
-- Engine rejects stale results using source/input identity.
-- UI receives revision-associated output without persisting results in Yjs.
+- Engine executes worksheet statements in deterministic document order.
+- Forward references are unavailable/rejected in V1.
+- Engine owns the environment and applies successful assignments for subsequent statements.
+- Failed statements do not partially mutate the environment; independent later statements can continue.
+- Each execution uses a fresh environment and produces a generation-associated immutable snapshot.
+- Authored changes trigger a full top-to-bottom rerun in V1.
+- Engine rejects late results from obsolete execution generations.
+- UI receives derived output without persisting it in Yjs.
 
 ## 10. Open items before freeze
 
-1. Confirm the exact `NodeId` and `Port` representation/namespace rules against the current Kernel implementation.
-2. Freeze graph API error variants, duplicate-edge behavior, missing-node behavior and deterministic ordering.
-3. Freeze the generic diagnostic/envelope serialization and unknown-field policy.
-4. Freeze Math's owned evaluation DTOs and symbolic-reference semantics.
-5. Define the Engine calculation-record, revision, cache, snapshot and transaction contracts in an Engine-owned specification.
-6. Define how cross-engine values (Math, Table, Diagram) are encoded in Engine-owned result records without adding domain semantics to Kernel.
+1. Confirm exact generic Kernel identity/port rules against the implementation.
+2. Freeze generic graph API error variants and deterministic ordering independently of worksheet execution.
+3. Freeze diagnostic/envelope serialization and unknown-field policy.
+4. Freeze Math expression-evaluation DTOs, source formats, symbol lookup diagnostics and lazy conditional semantics.
+5. Define Engine execution environment, reassignment, scope, execution-generation, immutable snapshot, failure-isolation and transaction contracts.
+6. Define how Table/Diagram values enter the sequential Engine environment without adding domain semantics to Kernel.
+7. Decide whether future optimizations may introduce dependency-based scheduling while preserving V1's observable sequential semantics.
+
+
 
 ## 11. Explicit non-goals
 
@@ -335,6 +333,8 @@ Detailed authored/derived lifecycle and cache rules are normative in `dual-zone-
 - Math depending on Kernel implementation internals or reading arbitrary Kernel state.
 - Math scheduling worksheet recalculation or committing results.
 - UI parsing/evaluating expressions or persisting derived results in Yjs.
-- Treating a topological order as a complete scheduler.
+- Treating a topological order as the V1 worksheet execution model.
+- Dynamic dependency requests or reactive dependency-graph scheduling in V1.
+- Forward references in V1.
 - Creating a monorepo or forcing all engines into one Cargo workspace.
 - Implementing source code or creating the public crate as part of this specification-only change.
