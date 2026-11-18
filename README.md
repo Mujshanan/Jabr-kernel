@@ -39,9 +39,9 @@ Kernel owns exactly six infrastructure areas:
 1. **Identifiers** — stable, domain-neutral identity and documented validity/serialization rules.
 2. **Ports** — generic endpoint identity associated with a Kernel identifier; port meaning remains opaque to Kernel.
 3. **Dependency graph** — generic graph representation and data-structure operations. A generic topological-order algorithm may report prerequisite-first ordering, but it is not an application scheduler.
-4. **Source spans and locations** — source-independent ranges and location primitives with explicit offset and line/column conventions. The current implementation has a UTF-8 byte-based, half-open `Span`. The `Location { line: u32, column: u32 }` contract is fixed for M0: one-based line and column, with columns counting Unicode scalar values from the start of the line; its type is an M1 implementation item.
+4. **Source spans and locations** — source-independent ranges and location primitives with explicit offset and line/column conventions. The current implementation has a UTF-8 byte-based, half-open `Span`. `Location` is implemented with validated one-based line and Unicode-scalar column coordinates. Its fields are private; construct it with `Location::new` and read them with `line()` and `column()`. `Span` remains the UTF-8 byte-based, half-open range.
 5. **Diagnostics** — generic structured diagnostics with stable owner-namespaced machine-readable codes.
-6. **Versioned envelopes** — a generic transport envelope with an explicit schema version and operation result/diagnostics.
+6. **Versioned envelopes** — a generic transport envelope with an explicit schema version and operation result/diagnostics. Serde deserialization accepts only the current schema version; migrations require an explicit adapter.
 
 Kernel does not interpret domain payloads or define engine semantics.
 
@@ -63,7 +63,7 @@ These responsibilities belong to the relevant engine, Orchestrator, or UI. They 
 
 The M0 audit compared the restructuring against the pre-change source, verified the retained public APIs against their implementations, and removed the out-of-scope `revision`, `snapshot`, and `result_store` modules and exports. Their code and tests were not migrated elsewhere; the removed behavior inventory is recorded in [development.md](./development.md).
 
-The M0 contract decisions are settled: `Location` uses one-based line/column coordinates with Unicode-scalar columns; envelope deserialization rejects schema versions other than the current version; and `DependencyGraph::topological_order` remains a generic graph algorithm, never an Orchestrator scheduler. `Location` implementation and strict envelope-version deserialization are M1 work. M0 technical audit is complete on this branch, pending user acceptance.
+The M0 contract decisions are settled: `Location` uses one-based line/column coordinates with Unicode-scalar columns; envelope deserialization rejects schema versions other than the current version; and `DependencyGraph::topological_order` remains a generic graph algorithm, never an Orchestrator scheduler. M0 was accepted and M1 implements the two previously outstanding API behaviors. Envelope deserialization rejects both older and future unsupported schema versions.
 
 ## Development and validation
 
