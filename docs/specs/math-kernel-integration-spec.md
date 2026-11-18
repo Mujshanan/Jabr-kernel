@@ -1,187 +1,108 @@
 # Math–Kernel Integration Specification
 
-**Status:** Contract specification draft for review  
-**Scope:** Public Rust contract, Math/Kernel boundary, and Engine-mediated evaluation lifecycle  
-**Target contract crate:** `jabr-kernel-api`  
-**Implementation crate:** `jabr-kernel`
+**Status:** M0 architecture draft — revised for Architecture A  
+**Contract target:** `jabr-kernel-api` (domain-neutral Kernel primitives only)  
+**Implementation:** `jabr-kernel`  
+**Orchestration owner:** planned Jabr Engine subsystem  
+**Version target:** `kernel-api-v1`  
+**Freeze rule:** This document is a proposal until reviewed and explicitly accepted.
 
-## 1. Purpose
+## 1. Purpose and governing decision
 
-Define the stable boundary between Jabr Math and Jabr Kernel so that Math and other Jabr engines can consume shared Kernel contracts without importing Kernel implementation details.
+Define the boundary between Jabr Math and Jabr Kernel while preserving the current repository ownership model.
 
-This specification reconciles two requirements:
+**Architecture A is normative for this draft:** Kernel remains a small, domain-neutral infrastructure library. It does not own worksheet state, variable state, document or node revision counters, calculation results, result caches, snapshots/history, dirty-state policy, or recalculation scheduling. Those responsibilities belong to the planned Jabr Engine subsystem or, for authored document persistence/history, Jabr-UI and BlockSuite/Yjs.
 
-1. The accepted architecture exposes a dedicated, versioned Rust public-contract crate named `jabr-kernel-api`; the implementation remains in `jabr-kernel`.
-2. Kernel remains domain-neutral. It does not become a mathematical evaluator, worksheet orchestrator, or owner of Math-specific variable semantics.
+The previously proposed expanded Kernel model (`KernelStateRead`, `KernelStateWrite`, `CellState`, Kernel-owned revisions/snapshots/result store) is explicitly not part of this contract.
 
-The separate Jabr Engine subsystem is the worksheet orchestrator. Its repository is planned and is not yet present in the connected repository set. This specification does not create that repository or implement any Kernel code.
+## 2. Ownership and dependency direction
 
-## 2. Normative ownership
-
-| Capability | Owner | Boundary |
+| Responsibility | Owner | Contract boundary |
 |---|---|---|
-| Public shared Rust types and traits | `jabr-kernel-api` | Versioned, domain-neutral contract |
-| Storage and generic algorithms | `jabr-kernel` | Implements the public contract |
-| Mathematical syntax, parser and AST | Jabr Math | Math-owned types and semantics |
-| Mathematical values, quantities and units | Jabr Math | Runtime mathematical model |
-| Expression-local symbol/reference analysis | Jabr Math | Derived from Math AST |
-| Worksheet node/port mapping | Jabr Engine | Maps authored blocks and Math references |
-| Cross-block dependency graph construction | Jabr Engine | Uses generic Kernel graph primitives |
-| Dirty-state policy and recalculation scheduling | Jabr Engine | Owns the worksheet lifecycle |
-| Evaluation orchestration | Jabr Engine | Calls Math in dependency order |
-| Calculation-result lifecycle | Jabr Engine | Publishes/invalidate results |
-| Authored worksheet and UI | Jabr-UI | BlockSuite/Yjs document and presentation |
+| Stable generic identity and ports | `jabr-kernel-api` | Domain-neutral IDs and endpoints |
+| Generic dependency graph primitives and algorithms | `jabr-kernel-api` / `jabr-kernel` | No worksheet scheduling semantics |
+| Generic source spans and diagnostic envelope | `jabr-kernel-api` | Namespaced codes; domain meaning stays with emitter |
+| Versioned generic transport envelope | `jabr-kernel-api` | Payload remains opaque |
+| Concrete storage and graph algorithms | `jabr-kernel` | Implements public contract |
+| Mathematical syntax, parser, AST, symbols, values, quantities, units and evaluation | Jabr Math | Math-owned domain model |
+| Expression-local reference extraction | Jabr Math | Returns symbolic references, not Kernel graph mutations |
+| Worksheet node mapping and cross-engine graph construction | Jabr Engine | Maps domain references to generic IDs/ports |
+| Document/node/source revisions, authored/derived lifecycle, result cache, snapshots and history of calculation state | Jabr Engine | Engine-owned lifecycle |
+| Dirty propagation, affected-node selection, scheduling and recalculation orchestration | Jabr Engine | Engine-owned policy |
+| Authored document, collaboration, persistence and authored undo/redo | Jabr-UI / BlockSuite / Yjs | Durable authored content |
+| Result presentation and transient rendering cache | Jabr-UI | Not a second calculation authority |
 
 ### 2.1 Dependency direction
 
-~~~text
-Jabr-UI
-   |
-   v
-Jabr Engine --------------------+
-   |                            |
-   +--> jabr-kernel-api          |
-   |       ^                    |
-   |       | implemented by     |
-   |   jabr-kernel              |
-   |                            |
-   +--> Jabr Math ---------------+
-   +--> Jabr Table
-   +--> Jabr Diagram
-~~~
+```text
+Jabr-UI (authored document + presentation)
+        |
+        v
+Jabr Engine (worksheet state, graph mapping, revisions,
+             result lifecycle, scheduling, orchestration)
+        |                  |
+        v                  v
+jabr-kernel-api          Jabr Math
+        ^                  |
+        |                  |
+   jabr-kernel       parse / analyze / evaluate
+ (implementation)
 
-- `jabr-kernel-api` has no dependency on Math, Engine, Table, Diagram, BlockSuite, Yjs, or UI.
-- `jabr-kernel` depends on `jabr-kernel-api` and implements its contracts.
-- Math and other engine repositories may depend on `jabr-kernel-api`, never on Kernel implementation modules.
-- Jabr Engine depends on the public contracts and domain-engine APIs; it must not import Kernel internals.
-- The application composition root constructs the concrete Kernel implementation and injects the public services. The location of that composition root is not fixed by this specification.
-- Kernel must never depend on Math.
+Jabr Table and Jabr Diagram expose their own domain models;
+Jabr Engine maps their references into the worksheet graph.
+```
 
-### 2.2 Math's use of Kernel API
+- `jabr-kernel-api` must not depend on Math, Engine, Table, Diagram, BlockSuite, Yjs, or UI.
+- `jabr-kernel` implements the generic public API and must not depend on Math.
+- Math and other consumers may depend on `jabr-kernel-api`, never on Kernel implementation modules.
+- Jabr Engine may depend on `jabr-kernel-api` and domain-engine facades.
+- The application composition root creates concrete implementations and injects them.
+- No `Arc<Mutex<...>>`, trait object tied to a concrete runtime, or implementation-owned reference crosses a serialized inter-engine boundary.
 
-Math may use shared identity, revision, source-span, diagnostic, envelope, and snapshot types where they are genuinely useful at its public boundary.
+## 3. Kernel public contract scope
 
-Math does not use Kernel as its worksheet state manager. It does not own or mutate the cross-block graph, schedule worksheet recalculation, commit calculation results, or decide when another block becomes dirty.
+The public crate exposes only the infrastructure already assigned to Kernel:
 
-Math remains independently testable without a running Kernel implementation. Its pure parser, AST, unit, and evaluator tests must not require a Kernel service instance.
+1. **Identity:** stable, domain-neutral `NodeId` and generic `Port` identity.
+2. **Dependency graph:** generic graph representation, edge operations, cycle detection and deterministic topological ordering.
+3. **Source locations:** validated source-independent spans and locations with documented coordinate conventions.
+4. **Diagnostics:** generic structured diagnostic envelope and severity; stable codes are namespaced by the emitting domain.
+5. **Versioned envelopes:** generic serialized request/result/diagnostic transport with explicit schema version.
 
-## 3. Public contract crate
+Kernel does **not** provide:
+- variable or assignment state, scopes, namespaces or symbol tables;
+- document, node, source or calculation revisions;
+- authored/derived/error/empty worksheet state;
+- calculation-result storage, invalidation, cache validity or publication;
+- snapshots, undo/redo, state history or restore policy;
+- cross-engine graph construction, dependency interpretation or dirty propagation;
+- recalculation scheduling, execution policy, notifications or orchestration;
+- Math values, Quantity, Unit, AST, expression diagnostics or evaluator behavior.
 
-The target crate layout is:
+The dedicated `jabr-kernel-api` crate is still the accepted public-contract packaging direction. Under Architecture A, it packages the generic capabilities above; it does not reintroduce the expanded state/revision/snapshot API.
 
-~~~text
-jabr-kernel-api/
-  src/
-    lib.rs
-    identity.rs
-    revision.rs
-    snapshot.rs
-    result_store.rs
-    graph.rs
-    diagnostic.rs
-    span.rs
-    envelope.rs
+## 4. Proposed generic Rust contract shapes
 
-jabr-kernel/
-  src/
-    ... concrete storage and algorithm implementations ...
-~~~
-
-The API crate contains public types, traits, error contracts, and serialization definitions. It must not contain storage backends, synchronization policy, database choices, or application orchestration.
-
-The implementation crate provides concrete implementations and internal optimizations. Consumers compile against `jabr-kernel-api` only.
-
-**Current repository status:** the open Kernel implementation work contains a domain-neutral Kernel crate and generic graph/identity/diagnostic/envelope code. The separate `jabr-kernel-api` crate and the complete public-contract extraction are not yet established. Existing development documentation and implementation branches must be audited against this target before any extraction. This specification is not evidence that the target crate already exists.
-
-## 4. Public API surface and proposed signatures
-
-The following Rust signatures define the proposed contract shape. Names and bounds are subject to compile-time contract tests before the contract is frozen. They are not claims about currently exported implementation symbols.
+These signatures are illustrative contract candidates. They are not claims about current exports and must be checked against the implementation and compile-time tests before freeze.
 
 ### 4.1 Identity
 
-~~~rust
+```rust
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct NodeId(/* private representation */);
-
-impl NodeId {
-    pub fn new(raw: u64) -> Result<Self, IdError>;
-    pub const fn get(self) -> u64;
-}
+pub struct NodeId(/* private, stable representation */);
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Port {
     pub node_id: NodeId,
     pub index: u32,
 }
+```
 
-impl Port {
-    pub const fn new(node_id: NodeId, index: u32) -> Self;
-}
-~~~
+The owning document/runtime defines the identity namespace. Kernel does not infer whether a node represents an expression, table cell, figure parameter or another domain object. Port meaning remains opaque.
 
-Kernel defines identity only. Engine defines whether a node represents a Math expression, table range, diagram output, or another worksheet object. Port indexes remain opaque to Kernel.
+### 4.2 Generic dependency graph
 
-Identity namespace and persistence rules must be explicit. IDs are not globally unique merely because they are represented by integers; the owning document/runtime defines the namespace.
-
-### 4.2 Revision
-
-~~~rust
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct Revision(u64);
-
-impl Revision {
-    pub const fn new(value: u64) -> Self;
-    pub const fn get(self) -> u64;
-    pub fn checked_next(self) -> Result<Self, RevisionError>;
-}
-~~~
-
-- Revisions are monotonic within the owning Engine document/session.
-- Kernel defines the value type and checked progression primitive.
-- Engine owns when a revision advances.
-- Undo/restore of authored content creates a newer revision; it never rewinds the counter.
-- Revision overflow is an explicit error.
-- When serialized through JSON/JavaScript, a full-width revision is encoded as a decimal string, not a JSON number.
-
-A Math-local source revision may be used for expression-specific cache invalidation, but it must not be confused with the Engine document revision or a Kernel revision.
-
-### 4.3 Snapshot
-
-~~~rust
-#[derive(Clone, Debug, PartialEq)]
-pub struct Snapshot<T> {
-    pub revision: Revision,
-    pub payload: T,
-}
-
-impl<T> Snapshot<T> {
-    pub fn new(revision: Revision, payload: T) -> Self;
-}
-~~~
-
-A snapshot represents a complete payload at one revision. It is not an event, patch, or incremental update.
-
-Use the agreed envelope composition for transport, for example `Envelope<Snapshot<T>>`. Do not add duplicate schema-version fields to the snapshot unless a separate compatibility requirement is documented.
-
-### 4.4 Generic result store
-
-~~~rust
-pub trait ResultStoreApi<V> {
-    fn get(&self, node: NodeId) -> Option<&V>;
-    fn insert(&mut self, node: NodeId, value: V) -> Option<V>;
-    fn remove(&mut self, node: NodeId) -> Option<V>;
-}
-~~~
-
-- Values are opaque to Kernel.
-- The Engine selects the stored value type and owns insertion, replacement, invalidation, and removal policy.
-- Kernel must not define MathValue, Quantity, units, variable names, scopes, or calculation errors-as-values.
-- The API must not expose mutable references that let consumers mutate stored values without an explicit replacement operation.
-- If atomic multi-node publication is required, Engine stages a complete result snapshot and publishes it as one Engine-owned operation. Do not add worksheet transactions to Kernel merely to implement one evaluator.
-
-### 4.5 Generic dependency graph
-
-~~~rust
+```rust
 pub trait DependencyGraphApi<N>
 where
     N: Clone + Ord,
@@ -195,20 +116,16 @@ where
     fn remove_node(&mut self, node: &N) -> bool;
     fn topological_order(&self) -> Result<Vec<N>, GraphError<N>>;
 }
-~~~
+```
 
-Kernel owns the generic graph representation and deterministic graph algorithms. Engine owns graph contents, node mapping, graph update policy, affected-node selection, and interpretation of cycles as worksheet diagnostics.
+Edge direction is normative: `node -> prerequisite` means the node depends on the prerequisite. Returned topological order is prerequisite-first. Kernel may detect generic graph cycles; Engine decides how those cycles map to worksheet diagnostics and recovery behavior.
 
-The graph API does not expose a method named `recalculate`. A topological ordering is a generic graph result, not a calculation schedule by itself.
+Kernel's topological ordering is a graph algorithm, not a scheduler. It does not choose affected nodes, execute expressions, publish results or trigger recalculation.
 
-### 4.6 Diagnostics and source spans
+### 4.3 Diagnostics and spans
 
-~~~rust
-pub enum Severity {
-    Info,
-    Warning,
-    Error,
-}
+```rust
+pub enum Severity { Info, Warning, Error }
 
 pub struct Diagnostic {
     pub code: String,
@@ -220,38 +137,34 @@ pub struct Diagnostic {
 pub struct Span {
     // Validated half-open UTF-8 byte range.
 }
-~~~
+```
 
-- Diagnostic codes are stable and namespaced by the emitting owner: `kernel.*`, `math.*`, `engine.*`, `table.*`, or `diagram.*`.
-- Consumers must not parse the human-readable message.
-- Kernel provides the generic shape; each domain owns its diagnostic codes and meaning.
-- Source spans use half-open UTF-8 byte offsets.
-- UI adapters must convert UTF-8 byte offsets to JavaScript UTF-16 offsets before applying browser/editor selections.
+- Codes are stable and owner-namespaced: `kernel.*`, `math.*`, `engine.*`, `table.*`, `diagram.*`.
+- Consumers must not parse human-readable messages.
+- Kernel defines the generic envelope and span conventions, not domain-specific codes.
+- UTF-8 byte offsets are the cross-engine source convention. UI adapters convert to editor-specific offsets (including UTF-16 where required).
 
-### 4.7 Versioned envelope
+### 4.4 Versioned envelope
 
-~~~rust
+```rust
 pub struct Envelope<T> {
     pub schema_version: u32,
     pub result: Option<T>,
     pub diagnostics: Vec<Diagnostic>,
 }
-~~~
+```
 
-Envelope schema version and domain payload schema versions are separate concerns. Envelope v1 must retain its documented field meanings. Unsupported schema versions must fail explicitly; they must not be silently interpreted as the current version.
+Envelope version and payload/domain version are separate. Unsupported versions fail explicitly; no silent interpretation as the current schema. Exact numeric payloads must use tagged string/integer representations rather than lossy JSON floating-point encoding.
 
-## 5. Math-facing facade contract
+## 5. Math facade contract
 
-Math exposes mathematical analysis and evaluation operations. It does not expose Kernel storage or Engine scheduling.
+Math exposes parsing, analysis and evaluation. It does not expose Kernel storage, mutate the worksheet graph, schedule dependent nodes or commit results.
 
-The following is the proposed conceptual shape; concrete AST and value DTOs remain Math-owned:
+Math returns symbolic references from its AST. It does not resolve those references to Kernel `NodeId` values; Engine owns that mapping.
 
-~~~rust
-pub struct AnalyzeRequest<'a> {
-    pub source: &'a str,
-    pub source_revision: Revision,
-}
+Proposed conceptual DTOs:
 
+```rust
 pub struct SymbolReference {
     pub name: String,
     pub span: Option<Span>,
@@ -259,141 +172,169 @@ pub struct SymbolReference {
 
 pub struct MathAnalysis {
     pub references: Vec<SymbolReference>,
-    pub diagnostics: Vec<Diagnostic>,
-    // Math-owned AST or a separately versioned AST DTO.
+    pub diagnostics: Vec<MathDiagnostic>,
+    // Parsed AST remains Math-owned.
 }
 
-pub struct EvaluateRequest<'a, C> {
-    pub source: &'a str,
-    pub source_revision: Revision,
-    pub context: &'a C,
-    pub preferred_display_unit: Option<String>,
+pub struct ResolvedBinding {
+    pub name: String,
+    pub value: MathValue,
+}
+
+pub struct EvaluationContext {
+    pub bindings: Vec<ResolvedBinding>,
+    pub source_revision: String,
+    pub input_fingerprint: String,
 }
 
 pub struct MathEvaluation {
-    pub source_revision: Revision,
-    // Math-owned exact/approximate value and quantity representation.
-    pub diagnostics: Vec<Diagnostic>,
+    pub value: Option<MathValue>,
+    pub diagnostics: Vec<MathDiagnostic>,
+    pub source_revision: String,
+    pub input_fingerprint: String,
 }
-~~~
 
-The final facade must not expose Calcpad internals, `Rc<RefCell<_>>`, parser implementation types, generated WASM classes, or Kernel implementation types.
+pub trait MathEngine {
+    fn analyze(&self, source: &str) -> MathAnalysis;
+    fn evaluate(
+        &self,
+        source: &str,
+        context: &EvaluationContext,
+    ) -> MathEvaluation;
+}
+```
 
-Math may return symbol references and typed evaluation results. Engine decides how references bind to worksheet nodes and how results enter the worksheet result lifecycle.
+The exact facade signatures, AST DTO policy and value serialization remain Math-owned and must be frozen in the Math facade contract. The example uses owned, serializable data; no Kernel trait object or borrowed Kernel state crosses the boundary.
 
-## 6. Recalculation trigger and execution lifecycle
+### 5.1 Evaluation purity
 
-**The Engine triggers and orchestrates worksheet recalculation. Kernel does not trigger Math, and Math does not schedule the worksheet.**
+For a fixed source, explicit context and compatible Math engine version, evaluation must not mutate external worksheet state. It may return diagnostics and a proposed value. Engine decides whether that result is still current and whether to publish it.
 
-~~~text
-Authored BlockSuite/Yjs change
+Math may use Kernel's generic `NodeId`, `Span` or `Envelope` types where useful, but its parser and evaluator must remain independently testable without a running Kernel implementation.
+
+## 6. Engine orchestration and recalculation lifecycle
+
+**Jabr Engine owns recalculation triggering and orchestration.** Kernel provides generic graph operations; Math provides expression analysis and evaluation.
+
+```text
+BlockSuite/Yjs authored change
           |
           v
-Jabr-UI sends source + document/block identity
+Jabr-UI sends authored source + block identity
           |
           v
-Jabr Engine advances its document/source revision
+Jabr Engine records authored state and advances Engine revisions
           |
           v
-Math analyzes the changed expression
+Math analyzes source and returns symbolic references
           |
           v
-Engine resolves references and updates graph
+Engine resolves references to worksheet nodes/ports
           |
           v
-Kernel graph returns generic topological order
+Engine updates the generic Kernel dependency graph
+          |
+          v
+Kernel returns generic graph/cycle/topological information
           |
           v
 Engine selects affected nodes and schedules evaluation
           |
           v
-Engine builds an explicit input context for Math
+Engine constructs owned immutable EvaluationContext
           |
           v
-Math evaluates and returns typed values + diagnostics
+Math evaluates and returns value + diagnostics
           |
           v
-Engine validates revision and stages result snapshot
+Engine validates source/input revisions and engine version
           |
           v
-Engine publishes results through Kernel result primitives
+Engine commits/publishes accepted derived state in its result lifecycle
           |
           v
-Jabr-UI receives revisioned derived output and renders it
-~~~
+Jabr-UI renders revision-associated derived output
+```
 
-### Required lifecycle rules
+Normative rules:
 
-1. An authored source change is observed by UI and submitted to Engine.
-2. Engine owns document and worksheet revision advancement.
-3. Math parses/analyzes source and reports expression-local references.
-4. Engine resolves cross-block references and updates the generic graph.
-5. Kernel provides generic graph operations and topological ordering.
-6. Engine computes the affected-node set and schedules evaluation.
-7. Engine supplies Math with an explicit immutable evaluation context.
-8. Math returns a result proposal and diagnostics; it does not mutate Kernel state.
-9. Engine rejects stale evaluations whose source/input revisions no longer match.
-10. Engine commits or publishes the accepted result state through the generic Kernel contract.
-11. UI renders the result as derived state; it does not persist calculated values in Yjs.
+1. UI submits authored source and stable block identity; it does not parse mathematical dependencies.
+2. Engine owns authored worksheet calculation records, source/document/node revisions and calculation generations.
+3. Math parses and extracts expression-local symbolic references.
+4. Engine resolves symbols, maps them to generic Kernel identities and updates graph edges.
+5. Kernel offers generic graph operations and prerequisite-first topological ordering.
+6. Engine computes the affected set, detects worksheet-level cycles and schedules evaluation.
+7. Engine resolves prerequisite values and passes an immutable owned context to Math.
+8. Math returns proposed values and Math-owned diagnostics; it never mutates Kernel or Engine state.
+9. Engine rejects a result if its source revision, input fingerprint, calculation generation or relevant engine version no longer matches.
+10. Engine publishes accepted results and owns cache validity/invalidation.
+11. UI receives result updates and keeps only a transient presentation cache. It does not persist calculated values in Yjs.
 
-Kernel may expose generic graph/store primitives, but it does not emit a Math-specific recalculation event. No Math callback, observer, or event subscription is required in Kernel for this lifecycle.
+No Kernel change event, Math callback subscription or Kernel-owned scheduler is required by this design.
 
-## 7. Versioning and compatibility
+## 7. Authored/derived state and revision ownership
 
-- Version `jabr-kernel-api` independently from the `jabr-kernel` implementation and from the vendored Calcpad engine.
-- Consumers pin a compatible API version; implementation upgrades must preserve that contract.
-- Breaking public type, trait, serialization, or semantic changes require a major API version.
-- Additive fields require explicit serde/default/unknown-field policy and compatibility tests.
-- Keep Rust API types distinct from browser wire DTOs where JavaScript number/string semantics require adaptation.
-- Preserve exact numeric values using tagged rational/decimal representations; do not serialize exact values as JSON floating-point numbers.
-- Native and WASM adapters must pass the same versioned golden fixtures.
+This integration contract does not define a Kernel `CellState`. The lifecycle is owned by Engine and UI:
 
-## 8. Acceptance tests
+- BlockSuite/Yjs persists authored source and user-authored preferences.
+- Engine maintains calculation records that associate authored inputs, dependency/input fingerprints, revisions, calculation generation, result and diagnostics.
+- A node may retain authored source while having a separate derived result or error. Recalculation never overwrites authored content.
+- Engine owns document, node/source and calculation-generation revisions. Their exact semantics and snapshot policy belong to the Engine lifecycle contract.
+- A no-op result may avoid a visible derived-state update, but calculation attempts still have their own generation/request identity.
+- Undo/redo restores authored document content through BlockSuite/Yjs. It creates a new Engine-observed input state and recalculates; it does not rewind monotonic Engine revisions.
+- Engine may snapshot its calculation lifecycle for recovery, but Kernel does not own or serialize worksheet snapshots.
 
-### Kernel API contract
+Detailed authored/derived lifecycle and cache rules are normative in `dual-zone-block-architecture.md` for UI-visible behavior and must be completed in the future Jabr Engine specification before Engine implementation.
 
-- Public API crate builds independently with no Jabr domain dependencies.
-- Kernel implementation depends on API; API does not depend on implementation.
-- Compile-time tests verify public signatures and generic bounds.
-- Graph tests verify deterministic prerequisite-first order, unknown-node errors, and cycle behavior.
-- Result-store tests verify insert/replace/get/remove and opaque payload handling.
-- Snapshot and envelope tests verify schema and round-trip behavior.
-- Revision tests verify monotonic progression, overflow handling, and JSON precision.
-- Diagnostic/span tests verify owner-namespaced codes and validated UTF-8 byte spans.
+## 8. Versioning and compatibility
 
-### Math consumer contract
+- Version `jabr-kernel-api` independently from `jabr-kernel`, Jabr Math and the wire envelope.
+- Consumers compile against the public contract only.
+- Breaking Rust API, trait or serialized semantic changes require an explicit major-version decision.
+- Unsupported envelope versions fail explicitly; migrations belong in explicit adapters.
+- Keep Rust API types distinct from browser DTOs where number/string or offset semantics differ.
+- Preserve exact rational/decimal values using tagged serializable forms.
+- Native and WASM Math adapters must pass the same golden evaluation fixtures.
 
-- Math compiles using `jabr-kernel-api` without importing `jabr-kernel`.
-- Math parser/evaluator tests run without a Kernel implementation.
-- Math returns expression references with valid source spans.
-- Math evaluation is deterministic for an explicit input context.
-- Math does not mutate Kernel state or schedule other worksheet nodes.
+## 9. Acceptance criteria
 
-### Engine integration contract
+### Kernel API
+- Public API crate contains only generic identity, ports, graph, spans, diagnostics and envelope contracts.
+- Kernel has no dependency on Math, Engine, Table, Diagram, BlockSuite, Yjs or UI.
+- No variable state, revision counter, result store, snapshot/history or recalculation scheduler is exported from Kernel.
+- Graph tests prove edge direction, deterministic prerequisite-first ordering, missing-node behavior and cycle reporting.
+- Envelope and diagnostic/span tests prove round-trip/version rejection and documented coordinate semantics.
 
-- Engine maps authored block IDs and Math references to generic NodeId/Port values.
-- Engine constructs the cross-block graph using the public graph API.
-- Engine schedules only affected nodes in prerequisite-first order.
-- Engine rejects stale results.
-- Engine publishes a complete revisioned result snapshot.
-- A Kernel implementation can be replaced without changing Math or Engine source imports.
+### Math
+- Math builds without importing `jabr-kernel` implementation modules.
+- Parser/AST/evaluator tests run without a Kernel service.
+- Reference extraction returns symbolic names and source spans, not worksheet NodeIds.
+- Evaluation consumes owned explicit bindings and returns values/diagnostics without mutating external state.
+- Unit and numeric domain types remain Math-owned.
 
-## 9. Current gaps and implementation sequence
+### Engine integration
+- Engine maps authored block identity and Math references to generic NodeId/Port.
+- Engine owns revisions, result lifecycle, dirty policy and scheduling.
+- Engine uses Kernel graph operations but does not delegate scheduling to Kernel.
+- Engine rejects stale results using source/input identity.
+- UI receives revision-associated output without persisting results in Yjs.
 
-1. Audit the existing Kernel implementation branch against this proposed API surface; record exactly which types are already present and which are only documented.
-2. Freeze the API crate's module layout, signatures, error types, serde policy, and MSRV.
-3. Create the dedicated `jabr-kernel-api` crate only after explicit implementation authorization.
-4. Adapt `jabr-kernel` to implement the public contracts without adding Math-specific semantics.
-5. Add compile-time consumer tests in Math and Engine.
-6. Keep Engine orchestration as a separate subsystem; do not move its scheduler into Kernel or Math.
-7. Integrate UI only after the Engine request/result contract is stable.
+## 10. Open items before freeze
 
-## 10. Explicit non-goals
+1. Confirm the exact `NodeId` and `Port` representation/namespace rules against the current Kernel implementation.
+2. Freeze graph API error variants, duplicate-edge behavior, missing-node behavior and deterministic ordering.
+3. Freeze the generic diagnostic/envelope serialization and unknown-field policy.
+4. Freeze Math's owned evaluation DTOs and symbolic-reference semantics.
+5. Define the Engine calculation-record, revision, cache, snapshot and transaction contracts in an Engine-owned specification.
+6. Define how cross-engine values (Math, Table, Diagram) are encoded in Engine-owned result records without adding domain semantics to Kernel.
 
-- Implementing or modifying Kernel source code as part of this specification.
-- Making Kernel a variable/scope database or Math evaluator.
-- Moving worksheet dependency resolution or recalculation scheduling into Kernel.
-- Making Math depend on Kernel implementation internals.
-- Making UI own calculation semantics or persist derived results in Yjs.
-- Creating a monorepo or cross-repository Cargo workspace.
-- Treating a topological ordering as a complete recalculation scheduler.
+## 11. Explicit non-goals
+
+- Expanding Kernel into a variable/state/history or result-storage subsystem.
+- Kernel-owned revisions, snapshots, cache validity or calculation triggers.
+- Math depending on Kernel implementation internals or reading arbitrary Kernel state.
+- Math scheduling worksheet recalculation or committing results.
+- UI parsing/evaluating expressions or persisting derived results in Yjs.
+- Treating a topological order as a complete scheduler.
+- Creating a monorepo or forcing all engines into one Cargo workspace.
+- Implementing source code or creating the public crate as part of this specification-only change.
