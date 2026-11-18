@@ -27,11 +27,6 @@ impl<V> ResultStore<V> {
         self.values.get(&node_id)
     }
 
-    /// Returns mutable access to a node's opaque value.
-    pub fn get_mut(&mut self, node_id: NodeId) -> Option<&mut V> {
-        self.values.get_mut(&node_id)
-    }
-
     /// Inserts or replaces a node's opaque value, returning the old value.
     pub fn insert(&mut self, node_id: NodeId, value: V) -> Option<V> {
         self.values.insert(node_id, value)
