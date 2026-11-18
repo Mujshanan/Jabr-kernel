@@ -88,13 +88,22 @@ impl NodeIdAllocator {
     }
     /// Allocates the next safe identifier.
     pub fn allocate(&self) -> Result<NodeId, IdAllocationError> {
-        let raw = self
-            .next
-            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |n| {
-                (n <= MAX_NODE_ID).then_some(n + 1)
-            })
-            .map_err(|_| IdAllocationError::Exhausted)?;
-        NodeId::new(raw)
+        let mut current = self.next.load(Ordering::Relaxed);
+        loop {
+            if current > MAX_NODE_ID {
+                return Err(IdAllocationError::Exhausted);
+            }
+
+            match self.next.compare_exchange_weak(
+                current,
+                current + 1,
+                Ordering::Relaxed,
+                Ordering::Relaxed,
+            ) {
+                Ok(_) => return NodeId::new(current),
+                Err(actual) => current = actual,
+            }
+        }
     }
 }
 
