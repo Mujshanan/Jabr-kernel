@@ -90,10 +90,7 @@ mod tests {
         let revision = Revision(u64::MAX);
         let json = serde_json::to_string(&revision).unwrap();
         assert_eq!(json, "\"18446744073709551615\"");
-        assert_eq!(
-            serde_json::from_str::<Revision>(&json).unwrap(),
-            revision
-        );
+        assert_eq!(serde_json::from_str::<Revision>(&json).unwrap(), revision);
         assert!(serde_json::from_str::<Revision>("42").is_err());
     }
 }
