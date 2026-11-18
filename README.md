@@ -39,7 +39,7 @@ Kernel owns exactly six infrastructure areas:
 1. **Identifiers** — stable, domain-neutral identity and documented validity/serialization rules.
 2. **Ports** — generic endpoint identity associated with a Kernel identifier; port meaning remains opaque to Kernel.
 3. **Dependency graph** — generic graph representation and data-structure operations. A generic topological-order algorithm may report prerequisite-first ordering, but it is not an application scheduler.
-4. **Source spans and locations** — source-independent ranges and location primitives with explicit offset and line/column conventions. The current implementation has a UTF-8 byte-based, half-open `Span`. The `Location` contract is fixed for M0: one-based line and column, with columns counting Unicode scalar values from the start of the line; its type is an M1 implementation item.
+4. **Source spans and locations** — source-independent ranges and location primitives with explicit offset and line/column conventions. The current implementation has a UTF-8 byte-based, half-open `Span`. The `Location { line: u32, column: u32 }` contract is fixed for M0: one-based line and column, with columns counting Unicode scalar values from the start of the line; its type is an M1 implementation item.
 5. **Diagnostics** — generic structured diagnostics with stable owner-namespaced machine-readable codes.
 6. **Versioned envelopes** — a generic transport envelope with an explicit schema version and operation result/diagnostics.
 
