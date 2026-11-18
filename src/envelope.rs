@@ -1,5 +1,5 @@
 //! Generic versioned JSON transport container.
-//! Cross-engine execution and recalculation are owned by Jabr-engine.
+//! Cross-engine graph construction and execution coordination are owned by the Orchestrator.
 use crate::Diagnostic;
 
 /// Initial version of the envelope schema.
