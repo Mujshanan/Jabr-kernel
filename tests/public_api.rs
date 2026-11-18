@@ -27,4 +27,8 @@ fn public_generic_contract_composes_without_domain_types() {
     assert_eq!(snapshot.revision, Revision(12));
     assert_eq!(snapshot.payload, 1);
     assert_eq!(port.node_id, node);
+
+    let source_span = jabr_kernel::Span::new(4, 9).unwrap();
+    assert_eq!(source_span.start(), 4);
+    assert_eq!(source_span.end(), 9);
 }
