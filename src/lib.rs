@@ -20,4 +20,4 @@ pub use port::Port;
 pub use result_store::ResultStore;
 pub use revision::{Revision, RevisionError};
 pub use snapshot::Snapshot;
-pub use span::{Location, Span, SpanError};
+pub use span::{Span, SpanError};
