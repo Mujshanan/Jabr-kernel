@@ -37,3 +37,7 @@ The Rust libraries should be independently buildable and testable. The UI should
 
 The architecture and responsibilities described here are the intended direction for the Jabr ecosystem. They do not imply that every listed capability has already been implemented.
 
+
+## Shared variable-state contract
+
+The initial revisioned variable-state boundary is specified in [docs/VARIABLE-STATE-CONTRACT.md](docs/VARIABLE-STATE-CONTRACT.md). The contract is domain-neutral; Math adapters translate their own values to opaque Kernel envelopes.
