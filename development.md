@@ -2,7 +2,7 @@
 
 **Architecture baseline:** 2026-11-18  
 **Target:** Jabr Kernel 0.1  
-**Status:** M0 repository alignment in progress; contract decisions remain open  
+**Status:** M0 audit and repository alignment complete; awaiting user acceptance  
 **Implementation branch:** `feat/kernel-core-implementation-0.1`
 
 This plan implements the locked Jabr architecture without changing responsibility ownership. Updating this plan or completing M0 does not authorize engine integration, Orchestrator implementation, UI integration, or changes to other repositories.
@@ -70,7 +70,7 @@ Kernel owns exactly these six areas:
 - The Orchestrator constructs the graph from engine-provided dependency information and owns cross-engine evaluation coordination.
 - Any generic graph algorithm must remain a data-structure operation with documented behavior. It must not become an application scheduler.
 
-The current implementation exposes `DependencyGraph::topological_order`, which computes a deterministic prerequisite-first order and reports unresolved nodes when a cycle blocks ordering. The M0 audit recommends retaining this as a generic graph algorithm; explicit confirmation of that API boundary remains pending. The Orchestrator alone decides what to execute, when, and how.
+The current implementation exposes `DependencyGraph::topological_order`, which computes a deterministic prerequisite-first order and reports unresolved nodes when a cycle blocks ordering. **M0 decision: retain it as a generic graph algorithm.** It reports graph structure only; the Orchestrator alone decides what to execute, when, and how.
 
 ### 2.4 Source spans and locations
 
@@ -79,7 +79,8 @@ The current implementation exposes `DependencyGraph::topological_order`, which c
 - The current `Span` uses UTF-8 byte offsets and a half-open range (start inclusive, end exclusive).
 - Kernel validates generic span structure; the owning engine interprets spans against its source.
 - Kernel does not implement parsers or domain-specific source mapping.
-- A `Location` type is not yet implemented. Its representation and line/column convention require an explicit decision before implementation.
+- **M0 decision:** `Location` is a source coordinate with one-based `line` and one-based `column`; `column` counts Unicode scalar values from the start of the line (not UTF-8 bytes, UTF-16 code units, grapheme clusters, or visual tab width). `Span` remains the canonical UTF-8 byte-based, half-open source range. The owning engine derives `Location` from its source text; Kernel does not perform source mapping.
+- The `Location` type itself is an M1 implementation item.
 
 ### 2.5 Diagnostics
 
@@ -96,7 +97,8 @@ The current implementation exposes `DependencyGraph::topological_order`, which c
 - Kernel owns the generic envelope shape and serialization contract, not operation execution or domain result types.
 - Exact field names, optionality, compatibility behavior, error/result representation, and TypeScript type-generation tooling must be documented before being treated as stable.
 - Do not add duplicate snapshot/revision protocols or engine-specific payload models.
-- The current implementation writes schema version 1 but accepts arbitrary versions on deserialization. Whether unsupported versions are rejected at deserialization or validated by consumers remains an open contract decision.
+- **M0 decision:** deserialization rejects any `schema_version` other than `ENVELOPE_SCHEMA_VERSION` (currently `1`). Consumers must not silently accept unknown future or unsupported historical schema versions. Compatibility with another version requires an explicit version-specific adapter or migration path.
+- The current derive-based deserializer does not yet enforce this rule; implementing validation is an M1 item.
 
 ## 3. Explicit exclusions
 
@@ -117,7 +119,7 @@ An implementation convenience is not grounds for moving any excluded responsibil
 
 ## 4. M0 audit record — 2026-11-18
 
-M0 is a contract and repository audit. It establishes scope and aligns the repository; it does not implement the missing `Location` type or finalize unresolved wire-contract decisions.
+M0 is a contract and repository audit. It establishes scope, resolves contract decisions, and aligns the repository. It does not implement the `Location` type or custom envelope deserialization; those are M1 implementation work.
 
 ### 4.1 Repository inventory
 
@@ -125,11 +127,11 @@ M0 is a contract and repository audit. It establishes scope and aligns the repos
 | --- | --- | --- |
 | `src/id.rs`: `NodeId`, `NodeIdAllocator`, `IdAllocationError`, `MAX_NODE_ID` | In scope | Retain |
 | `src/port.rs`: `Port` | In scope | Retain |
-| `src/graph.rs`: `DependencyGraph<N>`, `GraphError<N>` | In scope, API boundary to confirm | Retain generic graph operations; no scheduler policy |
+| `src/graph.rs`: `DependencyGraph<N>`, `GraphError<N>` | In scope | Retain generic graph operations, including `topological_order`; no scheduler policy |
 | `src/span.rs`: `Span`, `SpanError` | In scope | Retain; UTF-8 byte offsets, half-open range |
-| Location representation | In scope, not implemented | Contract decision pending |
+| `Location` representation | In scope, not implemented | Contract fixed: one-based line/column; Unicode-scalar columns; implement in M1 |
 | `src/diagnostic.rs`: `Diagnostic`, `Severity` | In scope | Retain; remove stale state-specific example |
-| `src/envelope.rs`: `Envelope<T>`, `ENVELOPE_SCHEMA_VERSION` | In scope, wire compatibility incomplete | Retain; version policy pending |
+| `src/envelope.rs`: `Envelope<T>`, `ENVELOPE_SCHEMA_VERSION` | In scope | Retain; reject schema versions other than the current version on deserialization (M1 implementation) |
 | `src/revision.rs` | Out of scope | Remove from Kernel |
 | `src/snapshot.rs` | Out of scope | Remove from Kernel |
 | `src/result_store.rs` | Out of scope | Remove from Kernel |
@@ -149,21 +151,45 @@ No `Cargo.lock`, `rust-toolchain.toml`, or root `.gitignore` was present in the 
 - **Diagnostics:** `Diagnostic`, `Severity`.
 - **Envelopes:** `Envelope<T>`, `ENVELOPE_SCHEMA_VERSION`.
 
-The exact stable API and wire compatibility rules remain subject to the open decisions below.
+The inventory describes the current implementation plus the approved `Location` contract to be implemented in M1. The current code's envelope deserializer still needs the M1 version check.
 
-### 4.3 Out-of-scope removal
+### 4.3 Out-of-scope removal and behavior-loss inventory
 
-The M0 restructuring removes revision counters/lifecycle, revisioned snapshots, and calculation-result storage from the Kernel crate, including their module declarations, public exports, and references in the public API test. Their implementation is not moved to another repository by this change. No state-management, caching, scheduling, or orchestration replacement is introduced.
+The M0 restructuring removed `revision.rs`, `snapshot.rs`, and `result_store.rs`, their `lib.rs` module declarations/re-exports, and their use in the public API integration test. This is consistent with the locked Kernel exclusions. No implementation or test migration to another repository was performed.
 
-### 4.4 Open contract decisions
+The removal did eliminate useful, self-contained behavior and regression coverage from this repository:
 
-These are deliberately not inferred from the existing implementation:
+| Removed area | Behavior removed | Tests removed from Kernel |
+| --- | --- | --- |
+| `Revision` | Checked monotonic increment; overflow error; decimal-string Serde representation preserving full `u64` precision | 3 unit tests: increment/order, overflow, full-range Serde round-trip |
+| `Snapshot<T>` | Owned payload associated with a revision; payload mapping while preserving revision | 2 unit tests: payload/clone independence and Serde round-trip inside `Envelope` |
+| `ResultStore<V>` | Deterministic `NodeId`-keyed opaque values; get/insert/replace/remove/contains/len/is_empty/iteration | 1 unit test covering insert/replace/get/remove/contains/len |
+| `tests/public_api.rs` | Former integration example composed `ResultStore`, `Revision`, `Snapshot`, and `Envelope` | Replaced by an in-scope API composition test; old integration scenario no longer exists |
 
-1. **Location convention:** Should Kernel provide a `Location` type with one-based line and column? If so, are columns UTF-8 byte columns, Unicode scalar-value columns, or another explicitly defined unit?
-2. **Envelope version compatibility:** Should deserialization reject unsupported schema versions, or should consumers deserialize the envelope and perform compatibility validation themselves?
-3. **Graph algorithm boundary:** Confirm that `topological_order()` remains a generic graph operation only. It reports a valid prerequisite-first ordering; it does not decide which nodes Jabr executes, when execution occurs, parallelism, recalculation, retries, or result handling.
+These are intentional removals from Kernel, not evidence that the behaviors are worthless. Their future ownership and any test porting must be decided in the responsible repository/workstream. Do not reintroduce them into Kernel or silently migrate them as part of M0.
 
-Until these are decided, M0 remains **in progress**. No ambiguous behavior is silently promoted to an approved contract.
+### 4.4 Retained public API verification
+
+The retained API was compared with its source implementations at the pre-restructure commit and re-fetched from the post-restructure branch. The new public API test uses existing constructors and methods; it does not invent or assume an API that is absent from the source.
+
+| Public API | Verified implementation contract | Current test coverage / gaps |
+| --- | --- | --- |
+| `NodeId`, `NodeIdAllocator`, `IdAllocationError`, `MAX_NODE_ID` | Nonzero `u64` constrained to JavaScript-safe integer range; checked construction; allocator clones share an atomic sequence; `new`, `get`, `allocate`, `Display` | Tests zero/above-max rejection, clone sequence, unsafe Serde rejection; add max-valid and allocator exhaustion boundary tests in M2 |
+| `Port` | Public `node_id: NodeId` and opaque zero-based `index: u32`; `Port::new`; optional Serde | Equality/identity test; serialization coverage should be added in M2 |
+| `DependencyGraph<N>`, `GraphError<N>` | `N: Ord`; add/remove node, add dependency, deterministic prerequisite-first topological order, len/empty; cycle error includes all unresolved nodes (including downstream blocked nodes) | Tests deterministic order, unknown node, and cycle-blocked nodes; add remove/idempotency/len/empty/duplicate-edge tests in M2 |
+| `Span`, `SpanError` | Private UTF-8 byte offsets; `new` rejects reversed ranges; start inclusive/end exclusive; `len` and `is_empty`; optional Serde validates reversed input | Tests normal/empty/reversed ranges and Serde round-trip/rejection; no `Location` implementation yet |
+| `Diagnostic`, `Severity` | Public `code`, `severity`, `message`, optional `span`; `new` and `with_span`; `Info`/`Warning`/`Error`; optional Serde | Code/message separation and Serde round-trip with span |
+| `Envelope<T>`, `ENVELOPE_SCHEMA_VERSION` | Public `schema_version`, optional `result`, `diagnostics`; `success`, `failure`, `with_diagnostic`; schema constant currently `1`; derived Serde currently accepts arbitrary version values | Tests explicit version and JSON round-trip; unsupported-version rejection is a documented M1 requirement, not yet implemented |
+
+`src/lib.rs` now declares and re-exports only the six in-scope modules/types that exist today. The `Location` type is the one planned public addition not yet implemented. No public API implementation was changed by the M0 removal, apart from deleting excluded exports and correcting the stale diagnostic example.
+
+### 4.5 Resolved contract decisions
+
+1. **Location convention — resolved:** `Location { line, column }` uses one-based line and column. Column counts Unicode scalar values from the beginning of the line. It is a human/source coordinate, not a byte offset, UTF-16 index, grapheme count, or rendered visual column. `Span` remains the canonical UTF-8 byte range. Engines derive locations from their source text; Kernel only represents and validates the coordinate. Implement the type in M1.
+2. **Envelope schema compatibility — resolved:** `Envelope<T>` deserialization rejects every schema version other than the current `ENVELOPE_SCHEMA_VERSION`. Do not silently accept future or unsupported historical versions. Version migration belongs in an explicit adapter. Implement the custom validation in M1; current derive-based Serde does not yet enforce it.
+3. **Graph algorithm boundary — resolved:** retain `DependencyGraph::topological_order()` as a generic graph algorithm. It returns deterministic prerequisite-first order or unresolved nodes when a cycle blocks ordering. It does not identify changed/dirty nodes, choose recalculation scope, schedule work, choose parallelism, invoke engines, retry, store results, or publish changes. Those are Orchestrator responsibilities.
+
+These decisions close the M0 contract questions. They do not authorize implementation of M1 or any engine/Orchestrator integration.
 
 ## 5. Development milestones
 
@@ -175,10 +201,13 @@ Until these are decided, M0 remains **in progress**. No ambiguous behavior is si
 - [x] Record the intended public API inventory.
 - [x] Identify revision, snapshot, result-store, state-management, caching, scheduling, and change-publication code for exclusion.
 - [x] Remove out-of-scope revision, snapshot, and result-store modules/exports/test usage from the M0 branch restructuring.
-- [ ] Resolve the three open contract decisions in Section 4.4.
-- [ ] Review and approve the completed M0 audit.
+- [x] Resolve and record the three contract decisions in Section 4.5.
+- [x] Compare the restructuring against the pre-change source and verify retained public APIs against their implementations.
+- [x] Record behavior and tests removed with the excluded modules.
+- [x] Review the M0 audit against the locked architecture.
+- [ ] Obtain user acceptance of the M0 completion report.
 
-**Exit criteria:** the scope inventory is reviewed, the open contract decisions are resolved, and the repository's public structure and documentation agree with the approved six-area contract.
+**Technical exit criteria:** the scope inventory is reviewed; contract decisions are resolved; excluded code is absent; retained APIs are verified; and repository documentation agrees with the six-area contract. These criteria are met on this branch. User acceptance is tracked separately and is not inferred from CI.
 
 ### M1 — Minimal Kernel primitives
 
