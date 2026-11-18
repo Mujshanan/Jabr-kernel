@@ -1,4 +1,4 @@
-//! Complete, immutable revisioned payload snapshots.
+//! Complete, owned revisioned payload snapshots.
 
 use crate::Revision;
 
