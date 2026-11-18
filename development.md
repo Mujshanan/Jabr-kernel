@@ -1,174 +1,159 @@
-# Jabr-kernel development and architecture contract
+# Jabr-kernel development plan
 
-**Contract status:** Approved architecture baseline for Jabr 0.1  
-**Scope:** Architecture and interface responsibilities across the Jabr ecosystem  
-**Implementation status:** This document records approved contracts; it does not assert that they are implemented.
+**Architecture baseline:** 2026-11-18  
+**Status:** revised ownership contract; implementation alignment and audit in progress.
 
-This document is the authoritative development contract for Jabr-kernel. The eight decisions in the architecture review are approved. Any change to these boundaries should be proposed explicitly and reviewed before implementation.
+This file is the authoritative Kernel development plan. It supersedes earlier proposals that made Kernel responsible for variable/scope assignment state or a cross-engine recalculation API.
 
-## 1. System architecture
+## 1. System boundaries
 
-Jabr is developed as a set of cooperating, independently maintained projects:
+- **Kernel** provides generic identity, revision, snapshot, result-storage, graph, diagnostic and source-span primitives.
+- **Math** owns mathematical values, quantities, units, parsing, AST, evaluation, and mathematical dependency semantics.
+- **Table** owns table structure, stable row/column identity, authored cell text and table metadata. It does not parse cell expressions or store Math evaluation values.
+- **Diagram** owns its renderer-independent diagram model, geometry and diagram-specific operations.
+- **Engine** (planned as a separate repository; not yet present in the connected repository set) constructs worksheet graph nodes, binds Math/Table/Diagram capabilities, schedules evaluation, and owns calculation-result lifecycle.
+- **UI** owns the complete worksheet experience and authored BlockSuite/Yjs document. It persists source and presentation choices, not calculated results.
 
-- **Jabr-kernel:** shared, domain-neutral Rust infrastructure.
-- **Jabr Math (currently Jabr-cli):** mathematical language and calculation engine.
-- **Jabr Diagram (Jabr-draw):** diagram model, geometry, drawing operations, and rendering.
-- **Jabr-table:** structured table model and cell operations.
-- **Jabr API:** cross-engine orchestration and the application-facing contract.
-- **Jabr-UI:** the complete TypeScript application UI, built around AFFiNE/BlockSuite.
-
-The intended dependency direction is:
+Dependency direction:
 
 ```text
-                    Jabr-kernel
-                   /     |     \
-                  v      v      v
-                Math    Draw   Table
-                   \     |     /
-                    v    v    v
-                      Jabr API
-                         |
-                         v
-                      Jabr-UI
+Jabr-UI -> Jabr-engine -> { Jabr-kernel, Jabr-math, Jabr-table, Jabr-diagram }
 ```
 
-The arrows indicate dependency direction: Math, Draw, and Table depend on Kernel; the API composes the engines; the UI depends on the API boundary. Kernel must not depend on any engine or application layer.
+No circular dependencies. No shared cross-repository Cargo workspace or monorepo.
 
-### Repository organization
+## 2. Kernel's approved minimal API
 
-Independent repositories remain the initial development model. Each Rust project must remain independently developable and testable. Do not consolidate repositories into a monorepo or introduce a shared Cargo workspace as part of this contract. Cross-repository integration should be achieved through explicit, versioned crate/API contracts.
+### 2.1 Identity
 
-## 2. Approved ownership contracts
+- NodeId is the stable generic identity used by Kernel graph and result-store primitives.
+- Port is a generic endpoint/port identity. It must not encode worksheet, table, expression, or math semantics.
+- Engine decides how authored blocks, table columns, or other calculation units map to nodes and ports.
 
-### 2.1 Jabr-kernel
+### 2.2 Revision
 
-Kernel owns shared state-management infrastructure:
+Provide Revision(u64) as a strongly typed monotonic counter.
 
-- Variable/state identity and creation.
-- Assignment/state updates as state transitions.
-- Revisions and change tracking.
-- Snapshots and state history needed to preserve prior states.
-- Generic dependency-graph primitives.
+- Revisions increase within one Engine document/session.
+- A restore or undo of authored content creates a new revision; it never rewinds the counter.
+- Revision exhaustion is an explicit error; do not wrap.
+- UI can use revisions to reject stale responses.
 
-Kernel is responsible for state lifecycle and generic infrastructure, not the meaning of mathematical expressions. It must not parse or evaluate formulas, define mathematical types, interpret units, or decide mathematical dependency semantics.
+Kernel exposes the primitive; Engine owns the revision lifecycle and decides when a calculation/document change advances it.
 
-Kernel must remain domain-neutral. In particular, it must not take dependencies on Math, Draw, Table, Jabr API, or Jabr-UI.
+### 2.3 Snapshot
 
-The concrete representation of engine-specific values inside shared state must preserve this boundary: Kernel must not acquire ownership of Math's `Value` or `Quantity` model merely to store or version state. The precise payload/serialization interface is an implementation-level contract to specify without moving mathematical semantics into Kernel.
+Provide the agreed generic shape:
 
-### 2.2 Jabr Math (currently Jabr-cli)
+```rust
+pub struct Snapshot<T> {
+    pub revision: Revision,
+    pub payload: T,
+}
+```
 
-Math owns mathematical meaning and calculation:
+A snapshot is a complete state payload for persistence/load and result publication, not an incremental update. Keep it aligned with the existing versioned Envelope conventions so saved state and load-time results share a predictable serialization boundary. Do not introduce a competing wire format or duplicate schema-version fields without an explicit API decision.
 
-- Mathematical `Value` and `Quantity` models.
-- Units, dimensions, conversions, and display-unit behavior.
-- Expression syntax, parsing, and evaluation.
-- Mathematical type rules, scopes, and dependency interpretation.
-- Evaluation diagnostics and mathematical error semantics.
+### 2.4 ResultStore
 
-Math evaluates right-hand sides and produces mathematical results. Kernel manages shared state transitions and generic graph structures; it does not become the evaluator.
+Provide ResultStore<V> keyed by NodeId.
 
-### 2.3 Jabr Diagram (Jabr-draw)
+- Kernel stores and retrieves opaque values only.
+- Kernel does not define MathValue, Quantity, units, errors-as-values, variable names, scopes, or evaluation behavior.
+- Engine chooses the value type and owns when results are inserted, replaced, invalidated, or removed.
+- Table never depends on or sees this store.
+- Keep any change notification contract generic and separate from complete snapshots.
 
-Diagram owns its diagram document model, geometry, drawing/editing operations, and rendering semantics. It may use Kernel's genuinely shared primitives but must not make Kernel responsible for diagram-domain concepts.
+Do not generalize the public API into arbitrary variable/scope transactions unless a demonstrated non-domain-specific use case requires it.
 
-### 2.4 Jabr-table
+### 2.5 Dependency graph
 
-Table owns table structure and cell identity/content, including formula text. A table cell's formula is stored by Table; Math parses and evaluates that formula. Kernel may provide generic dependency-graph primitives, but it does not interpret the formula or determine mathematical dependencies.
+Kernel provides generic graph structure and deterministic graph algorithms. It does not decide what a node means, parse dependencies, schedule recalculation, propagate domain errors, or decide worksheet invalidation policy. Engine constructs and mutates the graph and owns cycle/error interpretation at the worksheet level.
 
-### 2.5 Jabr API
+### 2.6 Diagnostics and spans
 
-The Jabr API owns cross-engine orchestration, including the recalculation loop. It coordinates Table, Math, Kernel, and other engine capabilities without moving their domain responsibilities into the API or Kernel.
+- Diagnostics carry stable, owner-namespaced codes and human-readable messages.
+- Source spans are generic source offsets; Math owns their interpretation against expression text.
+- Kernel must not encode Math parser diagnostics or Table-specific validation rules.
 
-The API is the application-facing boundary. Its external contract must be explicit and versioned. The TypeScript UI should consume this boundary rather than importing engine internals directly.
+## 3. Audit of current implementation
 
-### 2.6 Jabr-UI
+The current implementation branch has:
 
-Jabr-UI owns the complete product experience: worksheet composition, AFFiNE/BlockSuite integration, custom blocks, editing interactions, and presentation. It remains a TypeScript application and does not own Rust engine semantics.
+| API | Audit result |
+| --- | --- |
+| NodeId and allocator | Implemented in PR #2; retain as generic identity |
+| Port | Implemented in PR #2 as a node ID plus opaque index |
+| Revision | Implemented in PR #2 with checked monotonic progression |
+| Snapshot<T> | Implemented in PR #2 as a complete revisioned payload |
+| ResultStore<V> | Implemented in PR #2 and keyed only by NodeId |
+| DependencyGraph<N> | Generic graph retained; Engine decides graph contents and semantics |
+| Diagnostic / Span | Generic primitives retained; domain codes remain owner-defined |
+| Envelope<T> | Existing versioned transport shape; Snapshot is composable as Envelope<Snapshot<T>> |
+| StateStore<K, V> / StateSnapshot<K, V> | Removed from the public module surface in PR #2 |
+| Scope/Variable state proposal | Superseded; do not merge or extend as the Kernel architecture |
 
-## 3. Approved cross-cutting contracts
+PR #2 has been updated to the narrower API. Its Rust formatting, default/Serde tests and Clippy still require fresh CI evidence before the milestone can be marked verified.
 
-### 3.1 Wire format
+## 4. Development milestones
 
-The initial wire format is JSON carried inside a versioned `Envelope`.
+### M0 — Contract and source audit
 
-The envelope schema must make its version explicit and provide a stable place for operation results and diagnostics. Exact field names, compatibility policy, and TypeScript type-generation tooling remain schema-design work; they must not be silently assumed by individual engines.
+- [x] Inspect existing Kernel API and active implementation/documentation branches.
+- [x] Identify conflict between the older variable-state proposal and the revised generic infrastructure boundary.
+- [x] Identify current StateStore, StateSnapshot, Envelope, graph, ID, diagnostic and span APIs.
+- [ ] Record the final Envelope / Snapshot<T> serialization composition in a small compile-time API test.
+- [ ] Record whether a generic incremental change type is required independently of snapshots.
 
-### 3.2 Diagnostics
+**Exit:** public API contract is explicit and no Kernel type encodes Math, Table, worksheet, or Engine concepts.
 
-Diagnostic codes are part of the public API and must be stable. Codes are namespaced by their owning crate:
+### M1 — Minimal Kernel primitives
 
-- `kernel.*`
-- `math.*`
-- `draw.*`
-- `table.*`
+- [x] Finalize NodeId and generic Port.
+- [x] Add Revision(u64) with checked monotonic progression.
+- [x] Implement Snapshot<T> { revision, payload }.
+- [x] Implement ResultStore<V> keyed only by NodeId.
+- [x] Keep generic DependencyGraph without recalculation policy.
+- [x] Preserve generic Diagnostic and Span.
+- [x] Remove the old StateStore/StateSnapshot public module surface from PR #2.
 
-The owning crate defines the meaning of its codes. Cross-engine orchestration may transport and aggregate diagnostics but must not redefine their domain meaning. Human-readable messages may evolve independently of stable machine-readable codes, subject to the eventual compatibility policy.
+**Implementation status:** the above API work is present in PR #2; verification remains pending because no workflow run was returned for its latest commit.
 
-### 3.3 Dependency graph
+**Exit:** the crate exposes only the minimal generic contract and compiles without any Jabr domain dependency.
 
-Kernel provides generic graph primitives only. Math owns the interpretation of mathematical dependencies. The API coordinates recalculation across engines using the graph and engine-provided information. Table owns cell identity and formula text, not the formula evaluator.
+### M2 — Contract and serialization tests
 
-### 3.4 Value and unit ownership
+- [ ] Compile-time API tests for public signatures and generic bounds.
+- [ ] Snapshot clone/isolation and serialization round-trip tests.
+- [ ] Revision monotonicity, overflow and stale-revision boundary tests.
+- [ ] ResultStore insert/replace/remove/missing-key tests.
+- [ ] Deterministic graph order, unknown-node and cycle tests.
+- [ ] Diagnostics and spans serialization tests.
+- [ ] Default and Serde-feature CI; formatting, Clippy and docs checks.
 
-Math owns `Value`, `Quantity`, dimensions, unit conversions, and display-unit behavior. These concepts are not Kernel primitives. Shared state storage must accommodate engine-owned payloads without requiring Kernel to understand their semantics.
+**Exit:** Kernel behavior is deterministic, tested and independently consumable.
 
-## 4. First vertical slice: `x = 3 m`
+### M3 — Cross-repository integration contracts
 
-The first end-to-end integration slice is deliberately narrow:
+- [ ] Publish a tagged Kernel API version.
+- [ ] Add consumer-side compile tests in Math and Engine.
+- [ ] Verify Engine can instantiate ResultStore<MathValue> without Kernel depending on Math.
+- [ ] Verify Table has no dependency on Math or Kernel result storage.
+- [ ] Verify UI consumes revisioned Engine snapshots/updates without persisting derived results to Yjs.
 
-1. The user enters `x = 3 m` in Jabr-UI.
-2. Math parses the expression and identifies the assignment and mathematical dependencies.
-3. Kernel supplies the relevant shared identity and state-management operations; graph relationships use Kernel's generic primitives.
-4. Math evaluates the right-hand side and produces its `Value::Quantity` result.
-5. The Jabr API coordinates the operation and packages the result and any diagnostics in a versioned JSON `Envelope`.
-6. Jabr-UI receives the API response and renders the value and unit.
+**Exit:** each repository remains independently buildable and the boundaries are proven by compile-time tests.
 
-### Acceptance criteria
+## 5. Non-goals
 
-- The expression is parsed and evaluated by Math, not Kernel.
-- The resulting quantity and unit semantics are owned by Math.
-- Kernel records the appropriate state transition and revision.
-- A captured snapshot remains unchanged after a later update to the variable.
-- The API response uses the versioned JSON Envelope.
-- Diagnostic codes retain their owning crate namespace.
-- The UI uses the API contract and does not depend on internal Rust engine types.
+- Mathematical variables, assignments, scopes, parsing or evaluation.
+- Math values, quantities, dimensions, units or conversion.
+- Table cell text parsing or table-specific data semantics.
+- Worksheet graph construction, dependency interpretation or recalculation scheduling.
+- Result lifecycle policy beyond generic storage operations.
+- BlockSuite/Yjs document ownership, collaboration or undo/redo.
+- Cross-engine orchestration or an application API.
+- A monorepo or shared Cargo workspace.
 
-Only infrastructure required to support this vertical slice should be added to Kernel. Do not expand Kernel into a general calculation engine.
+## 6. Change policy
 
-## 5. Development and compatibility rules
-
-- Preserve the dependency direction and ownership boundaries in this document.
-- Keep each repository independently buildable and testable.
-- Document public APIs and externally observable behavior.
-- Treat diagnostic codes and the versioned Envelope as public compatibility surfaces.
-- Add cross-repository contract tests at integration boundaries, while retaining unit tests in each owning repository.
-- Prefer minimal dependencies and explicit types.
-- Changes that alter ownership, dependency direction, state/snapshot semantics, or wire compatibility require an explicit architecture-contract review before implementation.
-
-## 6. Deferred design details
-
-The following details are intentionally not decided by the eight approved architecture decisions. They must be specified when designing the corresponding interfaces, without changing the approved ownership boundaries:
-
-- Exact Kernel state payload representation and how engine-owned values are carried without Kernel owning their types.
-- Exact identifiers, revision granularity, snapshot retention/history policy, and conflict/stale-update semantics.
-- Dependency-graph API shape, edge metadata, invalidation semantics, and cycle handling.
-- Exact JSON Envelope fields, error/result representation, schema evolution policy, and generated TypeScript type tooling (including whether to use `tsify` or `ts-rs`).
-- Exact diagnostic structure, source-span representation, and compatibility policy for diagnostic details.
-- WASM/Tauri/native transport adapters and their implementation details.
-- Cargo crate packaging and release/version coordination across independent repositories.
-
-Deferred details are not permission to change ownership. For example, deciding how to serialize a Math quantity does not make Kernel the owner of the quantity model.
-
-## 7. Explicit non-goals for this contract
-
-- No Kernel mathematical parser or evaluator.
-- No Kernel ownership of `Value`, `Quantity`, units, or display-unit semantics.
-- No Kernel-specific Table, Diagram, or UI domain model.
-- No cross-engine recalculation loop inside Kernel.
-- No repository migration or monorepo conversion.
-- No claim that the architecture described here has already been implemented.
-
----
-
-**Approval record:** The eight architecture decisions reviewed on 2026-11-18 were approved: Kernel state lifecycle; Math ownership of mathematical values and semantics; generic Kernel dependency-graph primitives; Table ownership of formula text/cell identity with Math evaluation; API-owned cross-engine recalculation; versioned JSON Envelope; stable crate-namespaced diagnostics; and independent repositories as the initial development model.
+Any change to these ownership boundaries requires an explicit architecture review. Keep implementation changes focused, independently tested, and in pull requests. Do not merge any open Kernel PR as part of this documentation update.
