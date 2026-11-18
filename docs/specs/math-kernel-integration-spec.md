@@ -214,7 +214,7 @@ BlockSuite/Yjs authored worksheet
 Jabr-UI submits ordered authored blocks
           |
           v
-Engine creates execution generation and fresh environment
+Engine creates a worksheet execution ID, advances generations for scheduled calculation targets, and creates a fresh environment
           |
           v
 Engine reads next statement/block
@@ -243,14 +243,14 @@ Normative V1 rules:
 1. Engine executes authored worksheet statements/blocks in document order, from top to bottom.
 2. A variable becomes available only after its assignment executes successfully.
 3. Forward references are prohibited in V1. A reference to a variable not yet defined is unresolved at that point.
-4. Engine owns the execution environment, variable bindings, assignment application, ordering and execution generation.
+4. Engine owns the execution environment, variable bindings, assignment application, ordering, per-target source revisions/generations and the worksheet execution ID.
 5. Math owns parsing and evaluation of individual expressions against explicit bindings.
 6. Conditional expressions and statement blocks execute only their selected branches.
 7. A successful assignment updates the environment for subsequent statements; it does not mutate earlier captured values or snapshots.
 8. A failed statement records diagnostics and does not partially apply its assignment. Independent later statements may continue; statements requiring unavailable values are blocked or report unresolved symbols.
-9. Engine records per-statement/per-block outcomes and an immutable execution snapshot.
+9. Engine records per-statement/per-block outcomes, target-specific attempt identities and an immutable worksheet execution snapshot.
 10. An authored change triggers a full top-to-bottom rerun using a fresh environment. Dependency-based incremental recalculation is not part of V1.
-11. Engine validates execution generation and authored input identity before publishing results. Late responses from obsolete executions are rejected.
+11. Engine validates the worksheet execution ID plus each target's current source revision and per-target calculation generation before publishing its outcome. Late responses from obsolete attempts are rejected.
 12. Kernel graph primitives are not used as the V1 worksheet scheduler. They remain generic infrastructure for other uses and possible future optimization.
 
 ### 6.1 Error isolation
@@ -264,8 +264,8 @@ Engine interprets worksheet order and control flow; Math evaluates expressions. 
 ## 7. Authored state, execution environment and result lifecycle
 
 - BlockSuite/Yjs persists authored source, block order and user-authored preferences.
-- Engine creates a fresh execution environment for each worksheet execution generation.
-- Engine owns variable definitions, bindings, assignment updates, worksheet scopes/control flow, per-block outcomes, source revisions, execution generations and snapshots.
+- Engine creates a fresh execution environment for each worksheet execution ID.
+- Engine owns variable definitions, bindings, assignment updates, worksheet scopes/control flow, per-block outcomes, per-target source revisions, per-target calculation generations, worksheet execution IDs and snapshots.
 - Math receives immutable owned values for each expression and cannot mutate Engine state.
 - Successful assignments update the environment for subsequent statements only.
 - Failed assignments do not overwrite the last successful execution snapshot.
@@ -309,7 +309,7 @@ Variable reassignment, scope rules, immutable snapshot contents and transaction 
 - Forward references are unavailable/rejected in V1.
 - Engine owns the environment and applies successful assignments for subsequent statements.
 - Failed statements do not partially mutate the environment; independent later statements can continue.
-- Each execution uses a fresh environment and produces a generation-associated immutable snapshot.
+- Each worksheet run uses a fresh environment and produces an immutable snapshot. Each calculation target retains its own monotonic source revision and calculation generation; a worksheet execution ID groups the target attempts belonging to one run.
 - Authored changes trigger a full top-to-bottom rerun in V1.
 - Engine rejects late results from obsolete execution generations.
 - UI receives derived output without persisting it in Yjs.
@@ -320,7 +320,7 @@ Variable reassignment, scope rules, immutable snapshot contents and transaction 
 2. Freeze generic graph API error variants and deterministic ordering independently of worksheet execution.
 3. Freeze diagnostic/envelope serialization and unknown-field policy.
 4. Freeze Math expression-evaluation DTOs, source formats, symbol lookup diagnostics and lazy conditional semantics.
-5. Define Engine execution environment, reassignment, scope, execution-generation, immutable snapshot, failure-isolation and transaction contracts.
+5. Define Engine execution environment, reassignment, scope, per-target revision/generation, worksheet execution ID, immutable snapshot, failure-isolation and transaction contracts.
 6. Define how Table/Diagram values enter the sequential Engine environment without adding domain semantics to Kernel.
 7. Decide whether future optimizations may introduce dependency-based scheduling while preserving V1's observable sequential semantics.
 
