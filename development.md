@@ -147,7 +147,7 @@ No `Cargo.lock`, `rust-toolchain.toml`, or root `.gitignore` was present in the 
 - **Identifiers:** `NodeId`, `NodeIdAllocator`, `IdAllocationError`, `MAX_NODE_ID`.
 - **Ports:** `Port`.
 - **Graph:** `DependencyGraph<N>`, `GraphError<N>`.
-- **Spans and locations:** `Span`, `SpanError`, and a location representation after its convention is approved.
+- **Spans and locations:** `Span`, `SpanError`, and `Location { line: u32, column: u32 }` with one-based Unicode-scalar coordinates.
 - **Diagnostics:** `Diagnostic`, `Severity`.
 - **Envelopes:** `Envelope<T>`, `ENVELOPE_SCHEMA_VERSION`.
 
