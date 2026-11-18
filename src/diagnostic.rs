@@ -56,12 +56,8 @@ mod tests {
     #[cfg(feature = "serde")]
     #[test]
     fn diagnostic_round_trips_with_a_source_span() {
-        let diagnostic = Diagnostic::new(
-            "kernel.input.invalid",
-            Severity::Error,
-            "Invalid input",
-        )
-        .with_span(Span::new(4, 9).unwrap());
+        let diagnostic = Diagnostic::new("kernel.input.invalid", Severity::Error, "Invalid input")
+            .with_span(Span::new(4, 9).unwrap());
 
         let json = serde_json::to_string(&diagnostic).unwrap();
         let decoded: Diagnostic = serde_json::from_str(&json).unwrap();
