@@ -2,7 +2,7 @@
 
 **Architecture baseline:** 2026-11-18  
 **Target:** Jabr Kernel 0.1  
-**Status:** M0 audit and repository alignment complete; awaiting user acceptance  
+**Status:** M1 implementation underway; user authorized M1 work on 2026-11-18  
 **Implementation branch:** `feat/kernel-core-implementation-0.1`
 
 This plan implements the locked Jabr architecture without changing responsibility ownership. Updating this plan or completing M0 does not authorize engine integration, Orchestrator implementation, UI integration, or changes to other repositories.
@@ -190,7 +190,7 @@ The retained API was compared with its source implementations at the pre-restruc
 2. **Envelope schema compatibility — resolved and implemented in M1:** `Envelope<T>` deserialization rejects every schema version other than the current `ENVELOPE_SCHEMA_VERSION`. Do not silently accept future or unsupported historical versions. Version migration belongs in an explicit adapter.
 3. **Graph algorithm boundary — resolved:** retain `DependencyGraph::topological_order()` as a generic graph algorithm. It returns deterministic prerequisite-first order or unresolved nodes when a cycle blocks ordering. It does not identify changed/dirty nodes, choose recalculation scope, schedule work, choose parallelism, invoke engines, retry, store results, or publish changes. Those are Orchestrator responsibilities.
 
-These decisions close the M0 contract questions. They do not authorize implementation of M1 or any engine/Orchestrator integration.
+These decisions close the M0 contract questions. The user has authorized M1 implementation; they do not authorize engine/Orchestrator integration.
 
 ## 5. Development milestones
 
@@ -206,7 +206,7 @@ These decisions close the M0 contract questions. They do not authorize implement
 - [x] Compare the restructuring against the pre-change source and verify retained public APIs against their implementations.
 - [x] Record behavior and tests removed with the excluded modules.
 - [x] Review the M0 audit against the locked architecture.
-- [ ] Obtain user acceptance of the M0 completion report.
+- [x] User authorized proceeding to M1 on 2026-11-18; this does not authorize engine/Orchestrator integration.
 
 **Technical exit criteria:** the scope inventory is reviewed; contract decisions are resolved; excluded code is absent; retained APIs are verified; and repository documentation agrees with the six-area contract. These criteria are met on this branch. User acceptance is tracked separately and is not inferred from CI.
 
@@ -234,9 +234,9 @@ Implement only:
 - [ ] Port identity, equality, and serialization behavior.
 - [ ] Graph insertion/removal, duplicate operations, unknown references, deterministic behavior, and cycle behavior for any included generic graph algorithm.
 - [ ] Span boundaries, empty spans, reversed ranges, and documented offset conventions.
-- [ ] Location convention and validation tests.
+- [x] Location convention and validation tests.
 - [ ] Diagnostic structure, code namespace conventions, optional span, and serialization.
-- [ ] Envelope schema version, result/diagnostic representation, serialization round-trip, and malformed/unsupported-version handling.
+- [x] Envelope schema version, result/diagnostic representation, serialization round-trip, and unsupported-version handling.
 - [ ] External-consumer compile test using only the public Kernel API.
 - [ ] Compile-time checks that examples use no Math, Table, Diagram, Orchestrator, or UI types.
 
