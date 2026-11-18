@@ -11,11 +11,16 @@ impl Revision {
     pub const ZERO: Self = Self(0);
 
     /// Returns the underlying counter.
-    pub const fn get(self) -> u64 { self.0 }
+    pub const fn get(self) -> u64 {
+        self.0
+    }
 
     /// Advances without wrapping.
     pub fn checked_next(self) -> Result<Self, RevisionError> {
-        self.0.checked_add(1).map(Self).ok_or(RevisionError::Exhausted)
+        self.0
+            .checked_add(1)
+            .map(Self)
+            .ok_or(RevisionError::Exhausted)
     }
 }
 
@@ -48,6 +53,9 @@ mod tests {
 
     #[test]
     fn revision_overflow_is_explicit() {
-        assert_eq!(Revision(u64::MAX).checked_next(), Err(RevisionError::Exhausted));
+        assert_eq!(
+            Revision(u64::MAX).checked_next(),
+            Err(RevisionError::Exhausted)
+        );
     }
 }

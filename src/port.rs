@@ -30,7 +30,13 @@ mod tests {
     #[test]
     fn port_identity_is_node_and_index() {
         let node = NodeIdAllocator::default().allocate().unwrap();
-        assert_eq!(Port::new(node, 0), Port { node_id: node, index: 0 });
+        assert_eq!(
+            Port::new(node, 0),
+            Port {
+                node_id: node,
+                index: 0
+            }
+        );
         assert_ne!(Port::new(node, 0), Port::new(node, 1));
     }
 }

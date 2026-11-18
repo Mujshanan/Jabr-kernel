@@ -30,16 +30,25 @@ pub struct Diagnostic {
 impl Diagnostic {
     /// Creates a diagnostic without a source span.
     pub fn new(code: impl Into<String>, severity: Severity, message: impl Into<String>) -> Self {
-        Self { code: code.into(), severity, message: message.into(), span: None }
+        Self {
+            code: code.into(),
+            severity,
+            message: message.into(),
+            span: None,
+        }
     }
     /// Adds a source span.
-    pub fn with_span(mut self, span: Span) -> Self { self.span = Some(span); self }
+    pub fn with_span(mut self, span: Span) -> Self {
+        self.span = Some(span);
+        self
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test] fn code_is_separate_from_display_message() {
+    #[test]
+    fn code_is_separate_from_display_message() {
         let d = Diagnostic::new("kernel.state.missing", Severity::Error, "Missing");
         assert_eq!(d.code, "kernel.state.missing");
     }

@@ -13,13 +13,19 @@ pub struct Span {
 impl Span {
     /// Constructs a span and rejects reversed ranges.
     pub fn new(start: usize, end: usize) -> Result<Self, SpanError> {
-        if start > end { return Err(SpanError::Reversed { start, end }); }
+        if start > end {
+            return Err(SpanError::Reversed { start, end });
+        }
         Ok(Self { start, end })
     }
     /// Returns byte length.
-    pub const fn len(self) -> usize { self.end - self.start }
+    pub const fn len(self) -> usize {
+        self.end - self.start
+    }
     /// Returns whether the span is empty.
-    pub const fn is_empty(self) -> bool { self.start == self.end }
+    pub const fn is_empty(self) -> bool {
+        self.start == self.end
+    }
 }
 
 /// One-based line and column position.
@@ -34,7 +40,9 @@ pub struct Location {
 impl Location {
     /// Constructs a validated one-based location.
     pub fn new(line: usize, column: usize) -> Result<Self, SpanError> {
-        if line == 0 || column == 0 { return Err(SpanError::ZeroLocation); }
+        if line == 0 || column == 0 {
+            return Err(SpanError::ZeroLocation);
+        }
         Ok(Self { line, column })
     }
 }
@@ -60,7 +68,8 @@ impl std::error::Error for SpanError {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test] fn invalid_ranges_are_rejected() {
+    #[test]
+    fn invalid_ranges_are_rejected() {
         assert!(Span::new(8, 3).is_err());
         assert!(Span::new(3, 3).unwrap().is_empty());
         assert!(Location::new(0, 1).is_err());

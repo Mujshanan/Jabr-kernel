@@ -23,7 +23,10 @@ impl<T> Snapshot<T> {
 
     /// Maps the payload while preserving its revision.
     pub fn map<U>(self, map: impl FnOnce(T) -> U) -> Snapshot<U> {
-        Snapshot { revision: self.revision, payload: map(self.payload) }
+        Snapshot {
+            revision: self.revision,
+            payload: map(self.payload),
+        }
     }
 }
 
@@ -44,8 +47,7 @@ mod tests {
         let snapshot = Snapshot::new(Revision(4), "opaque");
         let envelope = crate::Envelope::success(snapshot);
         let json = serde_json::to_string(&envelope).unwrap();
-        let decoded: crate::Envelope<Snapshot<&str>> =
-            serde_json::from_str(&json).unwrap();
+        let decoded: crate::Envelope<Snapshot<&str>> = serde_json::from_str(&json).unwrap();
         let restored = decoded.result.unwrap();
         assert_eq!(restored.revision, Revision(4));
         assert_eq!(restored.payload, "opaque");

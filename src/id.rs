@@ -1,5 +1,9 @@
 //! Stable identifiers used by shared Kernel structures.
-use core::{fmt, num::NonZeroU64, sync::atomic::{AtomicU64, Ordering}};
+use core::{
+    fmt,
+    num::NonZeroU64,
+    sync::atomic::{AtomicU64, Ordering},
+};
 use std::sync::Arc;
 
 /// Largest integer that JavaScript can represent exactly.
@@ -25,14 +29,22 @@ impl<'de> serde::Deserialize<'de> for NodeId {
 impl NodeId {
     /// Validates and constructs an identifier.
     pub fn new(raw: u64) -> Result<Self, IdAllocationError> {
-        if raw > MAX_NODE_ID { return Err(IdAllocationError::Exhausted); }
-        NonZeroU64::new(raw).map(Self).ok_or(IdAllocationError::Zero)
+        if raw > MAX_NODE_ID {
+            return Err(IdAllocationError::Exhausted);
+        }
+        NonZeroU64::new(raw)
+            .map(Self)
+            .ok_or(IdAllocationError::Zero)
     }
     /// Returns the integer representation.
-    pub const fn get(self) -> u64 { self.0.get() }
+    pub const fn get(self) -> u64 {
+        self.0.get()
+    }
 }
 impl fmt::Display for NodeId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { self.get().fmt(f) }
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.get().fmt(f)
+    }
 }
 
 /// Identifier allocation failure.
@@ -45,8 +57,10 @@ pub enum IdAllocationError {
 }
 impl fmt::Display for IdAllocationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self { Self::Zero => f.write_str("node ID zero is reserved"),
-            Self::Exhausted => f.write_str("node ID space exhausted") }
+        match self {
+            Self::Zero => f.write_str("node ID zero is reserved"),
+            Self::Exhausted => f.write_str("node ID space exhausted"),
+        }
     }
 }
 impl std::error::Error for IdAllocationError {}
@@ -56,20 +70,29 @@ impl std::error::Error for IdAllocationError {}
 /// Separate allocator instances have independent sequences. Use one allocator
 /// per identity namespace, or let Engine provide the namespace boundary.
 #[derive(Debug, Clone)]
-pub struct NodeIdAllocator { next: Arc<AtomicU64> }
+pub struct NodeIdAllocator {
+    next: Arc<AtomicU64>,
+}
 impl Default for NodeIdAllocator {
-    fn default() -> Self { Self::new(1).expect("one is valid") }
+    fn default() -> Self {
+        Self::new(1).expect("one is valid")
+    }
 }
 impl NodeIdAllocator {
     /// Creates an allocator starting at first.
     pub fn new(first: u64) -> Result<Self, IdAllocationError> {
         NodeId::new(first)?;
-        Ok(Self { next: Arc::new(AtomicU64::new(first)) })
+        Ok(Self {
+            next: Arc::new(AtomicU64::new(first)),
+        })
     }
     /// Allocates the next safe identifier.
     pub fn allocate(&self) -> Result<NodeId, IdAllocationError> {
-        let raw = self.next.fetch_update(Ordering::Relaxed, Ordering::Relaxed,
-            |n| (n <= MAX_NODE_ID).then_some(n + 1))
+        let raw = self
+            .next
+            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |n| {
+                (n <= MAX_NODE_ID).then_some(n + 1)
+            })
             .map_err(|_| IdAllocationError::Exhausted)?;
         NodeId::new(raw)
     }
@@ -78,17 +101,24 @@ impl NodeIdAllocator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test] fn validates_range() {
+    #[test]
+    fn validates_range() {
         assert_eq!(NodeId::new(0), Err(IdAllocationError::Zero));
-        assert_eq!(NodeId::new(MAX_NODE_ID + 1), Err(IdAllocationError::Exhausted));
+        assert_eq!(
+            NodeId::new(MAX_NODE_ID + 1),
+            Err(IdAllocationError::Exhausted)
+        );
     }
-    #[test] fn clones_share_allocator_sequence() {
-        let a = NodeIdAllocator::default(); let b = a.clone();
+    #[test]
+    fn clones_share_allocator_sequence() {
+        let a = NodeIdAllocator::default();
+        let b = a.clone();
         assert_eq!(a.allocate().unwrap().get(), 1);
         assert_eq!(b.allocate().unwrap().get(), 2);
     }
     #[cfg(feature = "serde")]
-    #[test] fn serde_rejects_unsafe_ids() {
+    #[test]
+    fn serde_rejects_unsafe_ids() {
         assert!(serde_json::from_str::<NodeId>("9007199254740992").is_err());
     }
 }

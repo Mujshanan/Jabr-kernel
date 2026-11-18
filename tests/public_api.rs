@@ -1,5 +1,5 @@
 use jabr_kernel::{
-    DependencyGraph, Envelope, NodeIdAllocator, Port, Revision, ResultStore, Snapshot,
+    DependencyGraph, Envelope, NodeIdAllocator, Port, ResultStore, Revision, Snapshot,
 };
 
 #[test]
@@ -13,7 +13,10 @@ fn public_generic_contract_composes_without_domain_types() {
 
     let mut results = ResultStore::new();
     results.insert(node, String::from("opaque engine payload"));
-    assert_eq!(results.get(node).map(String::as_str), Some("opaque engine payload"));
+    assert_eq!(
+        results.get(node).map(String::as_str),
+        Some("opaque engine payload")
+    );
 
     let snapshot = Snapshot::new(Revision(12), results.len());
     let response: Envelope<Snapshot<usize>> = Envelope::success(snapshot);

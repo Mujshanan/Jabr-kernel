@@ -12,14 +12,18 @@ pub struct ResultStore<V> {
 
 impl<V> Default for ResultStore<V> {
     fn default() -> Self {
-        Self { values: BTreeMap::new() }
+        Self {
+            values: BTreeMap::new(),
+        }
     }
 }
 
 impl<V> ResultStore<V> {
     /// Creates an empty result store.
     pub fn new() -> Self {
-        Self { values: BTreeMap::new() }
+        Self {
+            values: BTreeMap::new(),
+        }
     }
 
     /// Returns the value currently associated with a node.
@@ -73,7 +77,10 @@ mod tests {
         assert!(store.insert(first, String::from("3 m")).is_none());
         assert!(store.insert(second, String::from("4 m")).is_none());
         assert_eq!(store.get(first).map(String::as_str), Some("3 m"));
-        assert_eq!(store.insert(first, String::from("5 m")).as_deref(), Some("3 m"));
+        assert_eq!(
+            store.insert(first, String::from("5 m")).as_deref(),
+            Some("3 m")
+        );
         assert_eq!(store.get(first).map(String::as_str), Some("5 m"));
         assert_eq!(store.remove(second).as_deref(), Some("4 m"));
         assert!(!store.contains(second));
