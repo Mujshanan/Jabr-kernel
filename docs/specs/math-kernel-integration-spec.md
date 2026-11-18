@@ -2,8 +2,8 @@
 
 **Status:** Contract specification draft for review  
 **Scope:** Public Rust contract, Math/Kernel boundary, and Engine-mediated evaluation lifecycle  
-**Target contract crate:** \`jabr-kernel-api\`  
-**Implementation crate:** \`jabr-kernel\`
+**Target contract crate:** `jabr-kernel-api`  
+**Implementation crate:** `jabr-kernel`
 
 ## 1. Purpose
 
@@ -11,7 +11,7 @@ Define the stable boundary between Jabr Math and Jabr Kernel so that Math and ot
 
 This specification reconciles two requirements:
 
-1. The accepted architecture exposes a dedicated, versioned Rust public-contract crate named \`jabr-kernel-api\`; the implementation remains in \`jabr-kernel\`.
+1. The accepted architecture exposes a dedicated, versioned Rust public-contract crate named `jabr-kernel-api`; the implementation remains in `jabr-kernel`.
 2. Kernel remains domain-neutral. It does not become a mathematical evaluator, worksheet orchestrator, or owner of Math-specific variable semantics.
 
 The separate Jabr Engine subsystem is the worksheet orchestrator. Its repository is planned and is not yet present in the connected repository set. This specification does not create that repository or implement any Kernel code.
@@ -20,8 +20,8 @@ The separate Jabr Engine subsystem is the worksheet orchestrator. Its repository
 
 | Capability | Owner | Boundary |
 |---|---|---|
-| Public shared Rust types and traits | \`jabr-kernel-api\` | Versioned, domain-neutral contract |
-| Storage and generic algorithms | \`jabr-kernel\` | Implements the public contract |
+| Public shared Rust types and traits | `jabr-kernel-api` | Versioned, domain-neutral contract |
+| Storage and generic algorithms | `jabr-kernel` | Implements the public contract |
 | Mathematical syntax, parser and AST | Jabr Math | Math-owned types and semantics |
 | Mathematical values, quantities and units | Jabr Math | Runtime mathematical model |
 | Expression-local symbol/reference analysis | Jabr Math | Derived from Math AST |
@@ -50,9 +50,9 @@ Jabr Engine --------------------+
    +--> Jabr Diagram
 ~~~
 
-- \`jabr-kernel-api\` has no dependency on Math, Engine, Table, Diagram, BlockSuite, Yjs, or UI.
-- \`jabr-kernel\` depends on \`jabr-kernel-api\` and implements its contracts.
-- Math and other engine repositories may depend on \`jabr-kernel-api\`, never on Kernel implementation modules.
+- `jabr-kernel-api` has no dependency on Math, Engine, Table, Diagram, BlockSuite, Yjs, or UI.
+- `jabr-kernel` depends on `jabr-kernel-api` and implements its contracts.
+- Math and other engine repositories may depend on `jabr-kernel-api`, never on Kernel implementation modules.
 - Jabr Engine depends on the public contracts and domain-engine APIs; it must not import Kernel internals.
 - The application composition root constructs the concrete Kernel implementation and injects the public services. The location of that composition root is not fixed by this specification.
 - Kernel must never depend on Math.
@@ -89,9 +89,9 @@ jabr-kernel/
 
 The API crate contains public types, traits, error contracts, and serialization definitions. It must not contain storage backends, synchronization policy, database choices, or application orchestration.
 
-The implementation crate provides concrete implementations and internal optimizations. Consumers compile against \`jabr-kernel-api\` only.
+The implementation crate provides concrete implementations and internal optimizations. Consumers compile against `jabr-kernel-api` only.
 
-**Current repository status:** the open Kernel implementation work contains a domain-neutral Kernel crate and generic graph/identity/diagnostic/envelope code. The separate \`jabr-kernel-api\` crate and the complete public-contract extraction are not yet established. Existing development documentation and implementation branches must be audited against this target before any extraction. This specification is not evidence that the target crate already exists.
+**Current repository status:** the open Kernel implementation work contains a domain-neutral Kernel crate and generic graph/identity/diagnostic/envelope code. The separate `jabr-kernel-api` crate and the complete public-contract extraction are not yet established. Existing development documentation and implementation branches must be audited against this target before any extraction. This specification is not evidence that the target crate already exists.
 
 ## 4. Public API surface and proposed signatures
 
@@ -161,7 +161,7 @@ impl<T> Snapshot<T> {
 
 A snapshot represents a complete payload at one revision. It is not an event, patch, or incremental update.
 
-Use the agreed envelope composition for transport, for example \`Envelope<Snapshot<T>>\`. Do not add duplicate schema-version fields to the snapshot unless a separate compatibility requirement is documented.
+Use the agreed envelope composition for transport, for example `Envelope<Snapshot<T>>`. Do not add duplicate schema-version fields to the snapshot unless a separate compatibility requirement is documented.
 
 ### 4.4 Generic result store
 
@@ -199,7 +199,7 @@ where
 
 Kernel owns the generic graph representation and deterministic graph algorithms. Engine owns graph contents, node mapping, graph update policy, affected-node selection, and interpretation of cycles as worksheet diagnostics.
 
-The graph API does not expose a method named \`recalculate\`. A topological ordering is a generic graph result, not a calculation schedule by itself.
+The graph API does not expose a method named `recalculate`. A topological ordering is a generic graph result, not a calculation schedule by itself.
 
 ### 4.6 Diagnostics and source spans
 
@@ -222,7 +222,7 @@ pub struct Span {
 }
 ~~~
 
-- Diagnostic codes are stable and namespaced by the emitting owner: \`kernel.*\`, \`math.*\`, \`engine.*\`, \`table.*\`, or \`diagram.*\`.
+- Diagnostic codes are stable and namespaced by the emitting owner: `kernel.*`, `math.*`, `engine.*`, `table.*`, or `diagram.*`.
 - Consumers must not parse the human-readable message.
 - Kernel provides the generic shape; each domain owns its diagnostic codes and meaning.
 - Source spans use half-open UTF-8 byte offsets.
@@ -277,7 +277,7 @@ pub struct MathEvaluation {
 }
 ~~~
 
-The final facade must not expose Calcpad internals, \`Rc<RefCell<_>>\`, parser implementation types, generated WASM classes, or Kernel implementation types.
+The final facade must not expose Calcpad internals, `Rc<RefCell<_>>`, parser implementation types, generated WASM classes, or Kernel implementation types.
 
 Math may return symbol references and typed evaluation results. Engine decides how references bind to worksheet nodes and how results enter the worksheet result lifecycle.
 
@@ -340,7 +340,7 @@ Kernel may expose generic graph/store primitives, but it does not emit a Math-sp
 
 ## 7. Versioning and compatibility
 
-- Version \`jabr-kernel-api\` independently from the \`jabr-kernel\` implementation and from the vendored Calcpad engine.
+- Version `jabr-kernel-api` independently from the `jabr-kernel` implementation and from the vendored Calcpad engine.
 - Consumers pin a compatible API version; implementation upgrades must preserve that contract.
 - Breaking public type, trait, serialization, or semantic changes require a major API version.
 - Additive fields require explicit serde/default/unknown-field policy and compatibility tests.
@@ -363,7 +363,7 @@ Kernel may expose generic graph/store primitives, but it does not emit a Math-sp
 
 ### Math consumer contract
 
-- Math compiles using \`jabr-kernel-api\` without importing \`jabr-kernel\`.
+- Math compiles using `jabr-kernel-api` without importing `jabr-kernel`.
 - Math parser/evaluator tests run without a Kernel implementation.
 - Math returns expression references with valid source spans.
 - Math evaluation is deterministic for an explicit input context.
@@ -382,8 +382,8 @@ Kernel may expose generic graph/store primitives, but it does not emit a Math-sp
 
 1. Audit the existing Kernel implementation branch against this proposed API surface; record exactly which types are already present and which are only documented.
 2. Freeze the API crate's module layout, signatures, error types, serde policy, and MSRV.
-3. Create the dedicated \`jabr-kernel-api\` crate only after explicit implementation authorization.
-4. Adapt \`jabr-kernel\` to implement the public contracts without adding Math-specific semantics.
+3. Create the dedicated `jabr-kernel-api` crate only after explicit implementation authorization.
+4. Adapt `jabr-kernel` to implement the public contracts without adding Math-specific semantics.
 5. Add compile-time consumer tests in Math and Engine.
 6. Keep Engine orchestration as a separate subsystem; do not move its scheduler into Kernel or Math.
 7. Integrate UI only after the Engine request/result contract is stable.
