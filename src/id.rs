@@ -6,6 +6,10 @@ use std::sync::Arc;
 pub const MAX_NODE_ID: u64 = (1_u64 << 53) - 1;
 
 /// A non-zero, JavaScript-safe node identifier.
+///
+/// IDs are scoped by the allocator/document that creates them; independently
+/// created allocators may produce the same numeric IDs. Persisted documents
+/// must preserve their IDs, and Engine is responsible for document scoping.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(transparent))]
@@ -48,6 +52,9 @@ impl fmt::Display for IdAllocationError {
 impl std::error::Error for IdAllocationError {}
 
 /// Monotonic allocator; cloned allocators share one atomic sequence.
+///
+/// Separate allocator instances have independent sequences. Use one allocator
+/// per identity namespace, or let Engine provide the namespace boundary.
 #[derive(Debug, Clone)]
 pub struct NodeIdAllocator { next: Arc<AtomicU64> }
 impl Default for NodeIdAllocator {
