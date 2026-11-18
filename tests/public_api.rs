@@ -208,18 +208,27 @@ fn diagnostics_preserve_machine_code_and_human_message_separately() {
 #[test]
 fn envelopes_construct_success_and_failure_without_domain_semantics() {
     let success: Envelope<&str> = Envelope::success("opaque");
-    assert_eq!(success.schema_version(), jabr_kernel::ENVELOPE_SCHEMA_VERSION);
+    assert_eq!(
+        success.schema_version(),
+        jabr_kernel::ENVELOPE_SCHEMA_VERSION
+    );
     assert_eq!(success.result, Some("opaque"));
     assert!(success.diagnostics.is_empty());
 
     let diagnostic = Diagnostic::new("kernel.test.failure", Severity::Error, "Failed");
     let failure: Envelope<()> = Envelope::failure(vec![diagnostic.clone()]);
-    assert_eq!(failure.schema_version(), jabr_kernel::ENVELOPE_SCHEMA_VERSION);
+    assert_eq!(
+        failure.schema_version(),
+        jabr_kernel::ENVELOPE_SCHEMA_VERSION
+    );
     assert_eq!(failure.result, None);
     assert_eq!(failure.diagnostics, vec![diagnostic.clone()]);
 
     let appended = success.with_diagnostic(diagnostic.clone());
-    assert_eq!(appended.schema_version(), jabr_kernel::ENVELOPE_SCHEMA_VERSION);
+    assert_eq!(
+        appended.schema_version(),
+        jabr_kernel::ENVELOPE_SCHEMA_VERSION
+    );
     assert_eq!(appended.result, Some("opaque"));
     assert_eq!(appended.diagnostics, vec![diagnostic]);
 }
