@@ -9,7 +9,7 @@ fn public_generic_contract_composes_without_domain_types() {
 
     let mut graph = DependencyGraph::default();
     graph.add_node(node);
-    assert_eq!(graph.recalculation_order().unwrap(), vec![node]);
+    assert_eq!(graph.topological_order().unwrap(), vec![node]);
 
     let mut results = ResultStore::new();
     results.insert(node, String::from("opaque engine payload"));
