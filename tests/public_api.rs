@@ -2,8 +2,9 @@
 
 use jabr_kernel::{
     DependencyGraph, Diagnostic, Envelope, GraphError, IdAllocationError, Location, LocationError,
-    NodeId, NodeIdAllocator, Port, Severity, Span, SpanError, MAX_NODE_ID,
+    NodeId, NodeIdAllocator, Port, Severity, Span, SpanError,
 };
+use jabr_kernel::id::MAX_NODE_ID;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
