@@ -2,7 +2,7 @@
 
 **Architecture baseline:** 2026-11-18  
 **Target:** Jabr Kernel 0.1  
-**Status:** M1 implementation and M2 public-contract tests committed; M2 CI validation passed  
+**Status:** M0–M3 technical work complete; M4 release-readiness validation passed on 2026-11-18; explicit Kernel 0.1 acceptance remains a separate gate  
 **Implementation branch:** `feat/kernel-core-implementation-0.1`
 
 This plan implements the locked Jabr architecture without changing responsibility ownership. Updating this plan or completing M0 does not authorize engine integration, Orchestrator implementation, UI integration, or changes to other repositories.
@@ -261,17 +261,21 @@ Implement only:
 
 ### M4 — Release readiness and Kernel gate
 
-- [ ] Run formatting checks.
-- [ ] Run tests with default features.
-- [ ] Run tests for every supported optional feature, including serialization.
-- [ ] Run Clippy with warnings denied.
-- [ ] Run rustdoc/documentation checks.
-- [ ] Verify the declared Rust MSRV against actual code and CI.
-- [ ] Confirm a clean build and clean working tree.
-- [ ] Confirm all required GitHub checks pass.
-- [ ] Publish a concise Kernel 0.1 API and compatibility note after review.
+**Technical result:** all M4 validation tasks passed on 2026-11-18. The milestone is technically ready for explicit Kernel 0.1 acceptance; that acceptance is not inferred from CI or from this implementation request.
 
-**Exit criteria:** Kernel 0.1 is reviewed, validated, and explicitly approved as complete.
+- [x] Run formatting checks — `cargo fmt --all -- --check`.
+- [x] Run tests with default features — `cargo test --all-targets`.
+- [x] Run tests for every supported optional feature, including serialization — `cargo test --all-targets --features serde`.
+- [x] Run Clippy with warnings denied — `cargo clippy --all-targets --all-features -- -D warnings`.
+- [x] Run rustdoc/documentation checks — `cargo doc --no-deps --all-features`, with `RUSTDOCFLAGS=-D warnings`.
+- [x] Verify the declared Rust MSRV against actual code and CI — Rust 1.75 `cargo check --all-targets --all-features`.
+- [x] Confirm a clean build and clean working tree — CI runs from a fresh checkout and now verifies `git diff --exit-code` plus an empty `git status --porcelain` after validation. Added a root `.gitignore` for generated `/target/` and `/Cargo.lock` artifacts so the library checkout remains clean.
+- [x] Confirm all GitHub workflow checks pass — push run [44369076724](https://github.com/Mujshanan/Jabr-kernel/actions/runs/44369076724) and pull-request run [44369097371](https://github.com/Mujshanan/Jabr-kernel/actions/runs/44369097371) both completed successfully on commit `e7af4b1703ce7cbe3bff72f0f9c8922fc9b7bc1c`. Both stable and Rust 1.75 jobs passed, including the clean-working-tree step.
+- [x] Publish a concise Kernel 0.1 API and compatibility note after review — see [API-COMPATIBILITY.md](./API-COMPATIBILITY.md).
+
+**Review findings:** the public surface remains within the six approved Kernel infrastructure areas and the M3 dependency/responsibility audit remains valid. The compatibility note records the current API and wire contracts, including the known `Envelope::schema_version` caveat: it remains public and mutable, so callers must use the constructors and not alter it; the serializer does not independently reject a manually changed value. Encapsulating that field is deferred because it would be a public API change, not silently introduced during M4.
+
+**Technical exit criteria:** satisfied. **Formal exit:** Kernel 0.1 still requires explicit user acceptance before any engine integration or Orchestrator work.
 
 ## 6. Integration gates — not part of this implementation phase
 
