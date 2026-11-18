@@ -9,8 +9,8 @@ Jabr-kernel is intended to provide shared, application-independent infrastructur
 | Repository | Responsibility |
 | --- | --- |
 | [Jabr-kernel](https://github.com/Mujshanan/Jabr-kernel) | Shared Rust foundation and common infrastructure |
-| [Jabr-cli](https://github.com/Mujshanan/Jabr-cli) | Mathematical language, parsing, evaluation, and calculation engine (Jabr Math) |
-| [Jabr-draw](https://github.com/Mujshanan/Jabr-draw) | Diagram model, geometry, drawing operations, and rendering (Jabr Diagram) |
+| [Jabr-math](https://github.com/Mujshanan/Jabr-math) | Mathematical language, parsing, evaluation, and calculation engine (Jabr Math) |
+| [Jabr-diagram](https://github.com/Mujshanan/Jabr-diagram) | Diagram model, geometry, drawing operations, and rendering (Jabr Diagram) |
 | [Jabr-table](https://github.com/Mujshanan/Jabr-table) | Structured table model, cell operations, and data handling |
 | [Jabr-UI](https://github.com/Mujshanan/Jabr-UI) | TypeScript application UI, AFFiNE/BlockSuite integration, and user interactions |
 
