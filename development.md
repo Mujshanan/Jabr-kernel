@@ -230,15 +230,15 @@ Implement only:
 
 ### M2 — Unit and public-contract tests
 
-- [ ] Identifier construction, invalid values, range boundaries, ordering, hashing, and allocator edge cases.
-- [ ] Port identity, equality, and serialization behavior.
-- [ ] Graph insertion/removal, duplicate operations, unknown references, deterministic behavior, and cycle behavior for any included generic graph algorithm.
-- [ ] Span boundaries, empty spans, reversed ranges, and documented offset conventions.
-- [ ] Location convention and validation tests.
-- [ ] Diagnostic structure, code namespace conventions, optional span, and serialization.
-- [ ] Envelope schema version, result/diagnostic representation, serialization round-trip, and malformed/unsupported-version handling.
-- [ ] External-consumer compile test using only the public Kernel API.
-- [ ] Compile-time checks that examples use no Math, Table, Diagram, Orchestrator, or UI types.
+- [x] Identifier construction, invalid values, range boundaries, ordering, hashing, and allocator edge cases.
+- [x] Port identity, equality, and serialization behavior.
+- [x] Graph insertion/removal, duplicate operations, unknown references, deterministic behavior, and cycle behavior for any included generic graph algorithm.
+- [x] Span boundaries, empty spans, reversed ranges, and documented offset conventions.
+- [x] Location convention and validation tests.
+- [x] Diagnostic structure, code namespace conventions, optional span, and serialization.
+- [x] Envelope schema version, result/diagnostic representation, serialization round-trip, and malformed/unsupported-version handling.
+- [x] External-consumer compile test using only the public Kernel API.
+- [x] Compile-time checks that examples use no Math, Table, Diagram, Orchestrator, or UI types.
 
 **Exit criteria:** the six public contracts are independently testable, documented, and consumable without domain dependencies.
 
