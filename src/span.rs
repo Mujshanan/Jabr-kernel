@@ -28,13 +28,13 @@ impl Span {
     }
 }
 
-/// One-based line and column position.
+/// One-based line and UTF-8 byte-column position.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Location {
     /// One-based line.
     pub line: usize,
-    /// One-based column.
+    /// One-based UTF-8 byte column, measured from the start of the line.
     pub column: usize,
 }
 impl Location {
