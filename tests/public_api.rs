@@ -45,6 +45,27 @@ fn cloned_allocators_share_sequence_and_independent_allocators_are_independent()
 }
 
 #[test]
+fn concurrent_cloned_allocators_issue_unique_monotonic_ids() {
+    let allocator = NodeIdAllocator::new(100).unwrap();
+    let mut workers = Vec::new();
+    for _ in 0..8 {
+        let local = allocator.clone();
+        workers.push(std::thread::spawn(move || {
+            (0..100)
+                .map(|_| local.allocate().unwrap().get())
+                .collect::<Vec<_>>()
+        }));
+    }
+
+    let mut allocated = workers
+        .into_iter()
+        .flat_map(|worker| worker.join().unwrap())
+        .collect::<Vec<_>>();
+    allocated.sort_unstable();
+    assert_eq!(allocated, (100..900).collect::<Vec<_>>());
+}
+
+#[test]
 fn port_identity_includes_node_and_opaque_index() {
     let a = NodeId::new(1).unwrap();
     let b = NodeId::new(2).unwrap();
