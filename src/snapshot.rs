@@ -41,6 +41,11 @@ mod tests {
         let snapshot = Snapshot::new(Revision(7), vec!["a", "b"]);
         assert_eq!(snapshot.revision, Revision(7));
         assert_eq!(snapshot.payload, vec!["a", "b"]);
+
+        let mut later = snapshot.clone();
+        later.payload.push("c");
+        assert_eq!(snapshot.payload, vec!["a", "b"]);
+        assert_eq!(later.payload, vec!["a", "b", "c"]);
     }
 
     #[cfg(feature = "serde")]
