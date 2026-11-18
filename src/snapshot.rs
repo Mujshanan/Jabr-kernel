@@ -1,20 +1,52 @@
-//! Immutable snapshots of generic Kernel state.
-use std::collections::BTreeMap;
+//! Complete, immutable revisioned payload snapshots.
 
-/// Point-in-time state copy. Payloads are opaque to Kernel.
+use crate::Revision;
+
+/// A complete payload captured at a particular revision.
+///
+/// Snapshots are used for persistence/load and full-state publication. They are
+/// distinct from incremental change notifications.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct StateSnapshot<K, V> {
-    /// Global store revision.
-    pub revision: u64,
-    /// Captured entries and their last-write revisions.
-    pub entries: BTreeMap<K, SnapshotEntry<V>>,
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Snapshot<T> {
+    /// Revision represented by this complete payload.
+    pub revision: Revision,
+    /// Complete opaque payload.
+    pub payload: T,
 }
 
-/// A value captured in a snapshot.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct SnapshotEntry<V> {
-    /// Opaque engine-owned payload.
-    pub value: V,
-    /// Revision at which the value was last written.
-    pub revision: u64,
+impl<T> Snapshot<T> {
+    /// Creates a revisioned snapshot.
+    pub const fn new(revision: Revision, payload: T) -> Self {
+        Self { revision, payload }
+    }
+
+    /// Maps the payload while preserving its revision.
+    pub fn map<U>(self, map: impl FnOnce(T) -> U) -> Snapshot<U> {
+        Snapshot { revision: self.revision, payload: map(self.payload) }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn snapshot_preserves_complete_payload_and_revision() {
+        let snapshot = Snapshot::new(Revision(7), vec!["a", "b"]);
+        assert_eq!(snapshot.revision, Revision(7));
+        assert_eq!(snapshot.payload, vec!["a", "b"]);
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn snapshot_round_trips_inside_versioned_envelope() {
+        let snapshot = Snapshot::new(Revision(4), "opaque");
+        let envelope = crate::Envelope::success(snapshot);
+        let json = serde_json::to_string(&envelope).unwrap();
+        let decoded: crate::Envelope<Snapshot<&str>> =
+            serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded.result.unwrap().revision, Revision(4));
+        assert_eq!(decoded.result.unwrap().payload, "opaque");
+    }
 }
