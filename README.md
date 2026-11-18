@@ -17,18 +17,7 @@ Math, Table, and Diagram remain independently developable and testable. Engine c
 
 ## Dependency direction
 
-\`\`\`text
-                 Jabr-kernel
-                /     |     \\
-               v      v      v
-             Math    Table  Diagram
-                \\     |     /
-                 v    v    v
-                  Engine
-                    |
-                    v
-                  Jabr-UI
-\`\`\`
+`Jabr-kernel` provides shared infrastructure to Math, Table, and Diagram. Those domain components provide their capabilities to Engine, and the UI consumes Engine's application-facing contract.
 
 Kernel must not depend on Math, Table, Diagram, Engine, or UI. Do not introduce a monorepo or shared cross-repository Cargo workspace as part of Kernel 0.1.
 
@@ -49,7 +38,7 @@ Kernel does not interpret domain payloads or define worksheet, mathematical, tab
 
 Kernel does not own variable or worksheet state, scopes, revisions, snapshots, result storage, invalidation, caching, cross-engine graph construction, dependency interpretation, scheduling, recalculation policy, or change publication. These worksheet-level responsibilities belong to **Engine**. Math owns mathematical parsing and evaluation; Table and Diagram own their respective domain models and operations. UI owns presentation and document interaction.
 
-The former \`Revision\`, \`Snapshot\`, and \`ResultStore\` implementations were intentionally removed from Kernel. They are not part of the Kernel 0.1 API. The historical removal and ownership decision are recorded in [development.md](development.md).
+The former `Revision`, `Snapshot`, and `ResultStore` implementations were intentionally removed from Kernel. They are not part of the Kernel 0.1 API. The historical removal and ownership decision are recorded in [development.md](development.md).
 
 ## Development and validation
 
@@ -58,12 +47,12 @@ The former \`Revision\`, \`Snapshot\`, and \`ResultStore\` implementations were 
 
 Run the repository checks locally:
 
-\`\`\`bash
+```bash
 cargo fmt --all -- --check
 cargo test --all-targets
 cargo test --all-targets --all-features
 cargo clippy --all-targets --all-features -- -D warnings
 cargo doc --no-deps --all-features
-\`\`\`
+```
 
 Keep the crate small, independently buildable, and domain-neutral. Do not add dependencies on Math, Table, Diagram, Engine, BlockSuite, Yjs, or UI.
