@@ -2,7 +2,7 @@
 
 **Baseline:** 2026-11-18  
 **Status:** Kernel implementation and M0–M4 technical validation complete; documentation cleanup is the remaining 0.1 release task.  
-**Implementation:** [PR #2](https://github.com/Mujshanan/Jabr-kernel/pull/2), merged to \`main\`.
+**Implementation:** [PR #2](https://github.com/Mujshanan/Jabr-kernel/pull/2), merged to `main`.
 
 ## 1. Architecture and ownership
 
@@ -23,18 +23,18 @@ Kernel exposes six infrastructure areas:
 
 | Area | Public API | Boundary |
 | --- | --- | --- |
-| Identifiers | \`NodeId\`, \`NodeIdAllocator\`, \`IdAllocationError\`, \`MAX_NODE_ID\` | Nonzero JavaScript-safe node IDs; allocator clones share a sequence |
-| Ports | \`Port\` | Opaque node/port identity; no domain meaning |
-| Graph | \`DependencyGraph<N>\`, \`GraphError<N>\` | Generic graph operations and deterministic prerequisite-first topological ordering; no scheduling |
-| Source coordinates | \`Span\`, \`SpanError\`, \`Location\`, \`LocationError\` | UTF-8 byte, half-open spans; one-based line and Unicode-scalar column locations |
-| Diagnostics | \`Diagnostic\`, \`Severity\` | Generic structured diagnostics; code meaning belongs to the emitting component |
-| Envelopes | \`Envelope<T>\`, \`ENVELOPE_SCHEMA_VERSION\` | Generic versioned result/diagnostic transport; unsupported schema versions are rejected on deserialization |
+| Identifiers | `NodeId`, `NodeIdAllocator`, `IdAllocationError`, `MAX_NODE_ID` | Nonzero JavaScript-safe node IDs; allocator clones share a sequence |
+| Ports | `Port` | Opaque node/port identity; no domain meaning |
+| Graph | `DependencyGraph<N>`, `GraphError<N>` | Generic graph operations and deterministic prerequisite-first topological ordering; no scheduling |
+| Source coordinates | `Span`, `SpanError`, `Location`, `LocationError` | UTF-8 byte, half-open spans; one-based line and Unicode-scalar column locations |
+| Diagnostics | `Diagnostic`, `Severity` | Generic structured diagnostics; code meaning belongs to the emitting component |
+| Envelopes | `Envelope<T>`, `ENVELOPE_SCHEMA_VERSION` | Generic versioned result/diagnostic transport; unsupported schema versions are rejected on deserialization |
 
 Kernel does not parse or evaluate formulas, interpret dependency meaning, build worksheet graphs, own worksheet state, store calculation results, or schedule/recalculate work. In particular, Kernel's topological sort reports graph order only; Engine decides what to execute and when.
 
 ## 3. Audit: revisions, snapshots, and result storage
 
-The active \`src/\` tree was audited for \`Revision\`, \`Snapshot\`, and \`ResultStore\`. None of these types or modules remains in the shipped source or public exports. The retained source modules are limited to diagnostics, envelopes, graph, identifiers, locations, ports, and spans.
+The active `src/` tree was audited for `Revision`, `Snapshot`, and `ResultStore`. None of these types or modules remains in the shipped source or public exports. The retained source modules are limited to diagnostics, envelopes, graph, identifiers, locations, ports, and spans.
 
 The old implementations were deliberately removed during the Kernel scope reduction:
 
@@ -50,13 +50,13 @@ Historical references to the removed names in this audit are retained to explain
 
 The merged Kernel implementation was validated independently with:
 
-\`\`\`bash
+```bash
 cargo fmt --all -- --check
 cargo test --all-targets
 cargo test --all-targets --all-features
 cargo clippy --all-targets --all-features -- -D warnings
 cargo doc --no-deps --all-features
-\`\`\`
+```
 
 CI also checks Rust 1.75 and a clean working tree. The M4 GitHub Actions runs passed:
 
