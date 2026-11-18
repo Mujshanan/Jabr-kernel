@@ -17,10 +17,12 @@ This file is the authoritative Kernel development plan. It supersedes earlier pr
 Dependency direction:
 
 ```text
-Jabr-UI -> Jabr-engine -> { Jabr-kernel, Jabr-math, Jabr-table, Jabr-diagram }
+Jabr-UI -> Jabr-engine -> { jabr-kernel-api, Jabr-math, Jabr-table, Jabr-diagram }
+
+Application composition root -> jabr-kernel (implementation) -> jabr-kernel-api
 ```
 
-No circular dependencies. No shared cross-repository Cargo workspace or monorepo.
+The accepted public-contract boundary is a dedicated, versioned Rust crate named `jabr-kernel-api`; the implementation remains in `jabr-kernel`. Engine and domain engines consume the public contract, not Kernel implementation internals. The composition root constructs and injects the implementation. No circular dependencies and no shared cross-repository Cargo workspace or monorepo.
 
 ## 2. Kernel's approved minimal API
 
@@ -157,3 +159,18 @@ PR #2 has been updated to the narrower API. Its Rust formatting, default/Serde t
 ## 6. Change policy
 
 Any change to these ownership boundaries requires an explicit architecture review. Keep implementation changes focused, independently tested, and in pull requests. Do not merge any open Kernel PR as part of this documentation update.
+
+
+## 7. Math–Kernel integration specification
+
+The detailed cross-boundary contract is maintained in [Math–Kernel Integration Specification](docs/specs/math-kernel-integration-spec.md).
+
+The specification defines:
+
+- The dedicated `jabr-kernel-api` public-contract crate and the `jabr-kernel` implementation boundary.
+- Proposed public signatures for identity, ports, revisions, snapshots, generic result storage, dependency graph operations, diagnostics, spans, and the versioned envelope.
+- Math's use of shared contract types without importing Kernel implementation details.
+- Engine ownership of worksheet graph construction, dirty-state policy, recalculation scheduling, and result lifecycle.
+- The request/evaluation/commit sequence and stale-result rules.
+
+This document is a contract proposal, not implementation authorization. The current implementation branch must be audited against the proposed API before the contract is frozen. Creating or extracting the separate API crate, changing Kernel source, or merging an implementation PR requires separate explicit authorization.
