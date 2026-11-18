@@ -13,7 +13,8 @@ pub const MAX_NODE_ID: u64 = (1_u64 << 53) - 1;
 ///
 /// IDs are scoped by the allocator/document that creates them; independently
 /// created allocators may produce the same numeric IDs. Persisted documents
-/// must preserve their IDs, and the owning document/application layer is responsible for document scoping.
+/// must preserve their IDs; the owning document/application layer defines the
+/// document-scoped identity namespace.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(transparent))]
@@ -68,7 +69,8 @@ impl std::error::Error for IdAllocationError {}
 /// Monotonic allocator; cloned allocators share one atomic sequence.
 ///
 /// Separate allocator instances have independent sequences. Use one allocator
-/// per identity namespace, or let the owning document/application layer provide the namespace boundary.
+/// per identity namespace, or let the owning document/application layer define
+/// the namespace boundary.
 #[derive(Debug, Clone)]
 pub struct NodeIdAllocator {
     next: Arc<AtomicU64>,
