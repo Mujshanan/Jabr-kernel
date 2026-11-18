@@ -33,7 +33,7 @@ Kernel is a dependency of the engine libraries, never the other way around. Each
 Kernel should provide only generic, reusable infrastructure:
 
 - NodeId and generic Port identity.
-- Revision(u64), a monotonic revision marker.
+- Revision(u64), a monotonic revision marker serialized as a decimal string in JSON to preserve JavaScript precision.
 - Snapshot<T> { revision, payload }, a complete revisioned payload that follows the existing versioned Envelope serialization conventions.
 - ResultStore<V>, generic storage keyed by NodeId; Kernel does not inspect or interpret V.
 - Generic dependency-graph primitives.
