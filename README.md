@@ -37,3 +37,8 @@ The Rust libraries should be independently buildable and testable. The UI should
 
 The architecture and responsibilities described here are the intended direction for the Jabr ecosystem. They do not imply that every listed capability has already been implemented.
 
+
+
+## Architecture specifications
+
+- [Math–Kernel Integration Specification](docs/specs/math-kernel-integration-spec.md) — versioned public API boundary, shared Rust contracts, and Engine-mediated recalculation lifecycle.
