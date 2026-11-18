@@ -103,7 +103,7 @@ PR #2 has been updated to the narrower API. Its Rust formatting, default/Serde t
 - [x] Identify conflict between the older variable-state proposal and the revised generic infrastructure boundary.
 - [x] Identify current StateStore, StateSnapshot, Envelope, graph, ID, diagnostic and span APIs.
 - [ ] Record the final Envelope / Snapshot<T> serialization composition in a small compile-time API test.
-- [ ] Record whether a generic incremental change type is required independently of snapshots.
+- [x] Decide the initial boundary for incremental changes: Kernel 0.1 exposes complete snapshots and opaque result storage only; Engine owns invalidation and any orchestration-specific change events.
 
 **Exit:** public API contract is explicit and no Kernel type encodes Math, Table, worksheet, or Engine concepts.
 
@@ -123,15 +123,15 @@ PR #2 has been updated to the narrower API. Its Rust formatting, default/Serde t
 
 ### M2 — Contract and serialization tests
 
-- [ ] Compile-time API tests for public signatures and generic bounds.
-- [ ] Snapshot clone/isolation and serialization round-trip tests.
-- [ ] Revision monotonicity, overflow and stale-revision boundary tests.
-- [ ] ResultStore insert/replace/remove/missing-key tests.
-- [ ] Deterministic graph order, unknown-node and cycle tests.
-- [ ] Diagnostics and spans serialization tests.
-- [ ] Default and Serde-feature CI; formatting, Clippy and docs checks.
+- [x] Compile-time API integration test for the public generic signatures.
+- [x] Snapshot clone behavior for owned payloads and Envelope/Snapshot Serde round-trip. Deep isolation for shared-mutable payloads remains the payload owner's responsibility.
+- [x] Revision monotonicity and overflow tests. Stale-response rejection is an Engine/UI contract, not a Kernel responsibility.
+- [x] ResultStore insert/replace/remove/missing-key tests.
+- [x] Deterministic topological order, unknown-node and cycle-blocked-node tests.
+- [x] Diagnostic and validated Span serialization round-trip tests.
+- [x] Default and Serde-feature CI; formatting, Clippy, rustdoc and Rust 1.75 MSRV checks.
 
-**Exit:** Kernel behavior is deterministic, tested and independently consumable.
+**Exit:** Kernel behavior is deterministic, tested and independently consumable. Cross-repository stale-response and payload-isolation guarantees remain Engine integration tests.
 
 ### M3 — Cross-repository integration contracts
 
