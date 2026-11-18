@@ -236,14 +236,28 @@ Implement only:
 
 ### M3 — Architectural and repository validation
 
-- [ ] Audit Cargo dependencies and public exports for domain/application leakage.
-- [ ] Confirm no revision, snapshot, result-storage, state-lifecycle, scheduling, caching, or change-publication responsibility remains in Kernel.
-- [ ] Confirm Kernel does not parse/evaluate formulas or interpret engine dependency semantics.
-- [ ] Confirm all public types have appropriate API documentation.
-- [ ] Confirm the repository builds and tests independently without a shared workspace.
-- [ ] Review the public API for accidental commitments beyond Kernel 0.1.
+**Audit result:** the M3 architecture and repository audit is complete. No production code or public API was changed.
 
-**Exit criteria:** implementation conforms to the architecture contract, not merely to its own unit tests.
+- [x] Audit Cargo dependencies and public exports for domain/application leakage.
+- [x] Confirm no revision, snapshot, result-storage, state-lifecycle, scheduling, caching, or change-publication responsibility remains in Kernel.
+- [x] Confirm Kernel does not parse/evaluate formulas or interpret engine dependency semantics.
+- [x] Confirm all public types have appropriate API documentation.
+- [x] Confirm the repository builds and tests independently without a shared workspace.
+- [x] Review the public API for accidental commitments beyond Kernel 0.1.
+
+**Audit evidence (branch HEAD before this audit record: `33dc45e7f43f8738511dcb0208695f7afa1c2045`):**
+
+1. **Package and dependency boundary:** the repository is a single Rust package, not a Cargo workspace. `Cargo.toml` has one optional runtime dependency (`serde`, enabled only by the `serde` feature) and one development-only dependency (`serde_json`). No engine, application, UI, BlockSuite, Yjs, or orchestration dependency is present. The declared MSRV is Rust 1.75 and CI checks it.
+2. **Public surface:** `src/lib.rs` exposes only the approved infrastructure modules: `diagnostic`, `envelope`, `graph`, `id`, `location`, `port`, and `span`. Root re-exports are limited to the corresponding public types/constants. The extra module count reflects that source locations are split into `Span` and `Location`; it does not add a seventh responsibility.
+3. **Responsibility scan:** the source tree contains no revision, snapshot, result-store, variable/assignment state, scope, history, cache, scheduler, cross-engine graph builder, formula parser/evaluator, or change-publication implementation. Historical mentions of removed modules occur only in the audit/development documentation.
+4. **Domain neutrality:** graph nodes are generic; ports carry only a node ID and opaque index; spans/locations carry source coordinates; diagnostics carry generic code/severity/message/span; and envelopes carry a generic payload. No module interprets mathematical, table, or diagram semantics.
+5. **API documentation:** public modules, types, fields, constructors, methods, enum variants, and error variants have rustdoc descriptions. The crate keeps `missing_docs = "warn"`; CI's Clippy and documentation jobs pass with warnings denied.
+6. **Independent validation:** there is no workspace dependency or sibling-crate path dependency. The package's integration test is compiled as an external consumer crate against `jabr_kernel` and uses only public exports. GitHub Actions run [44363021720](https://github.com/Mujshanan/Jabr-kernel/actions/runs/44363021720) passed both jobs: formatting, default-feature tests, Serde-feature tests, Clippy, rustdoc, and the Rust 1.75 all-feature check. The matching PR run [44363040366](https://github.com/Mujshanan/Jabr-kernel/actions/runs/44363040366) also passed.
+7. **Public-contract review:** current commitments are limited to the documented ID range and allocator clone semantics; opaque `Port` identity; deterministic prerequisite-first graph ordering and the documented unresolved-node meaning of `GraphError::Cycle`; UTF-8 byte/half-open `Span`; one-based Unicode-scalar `Location`; snake_case severity wire values; and schema-version-1 envelopes with strict deserialization. The optional Serde feature remains the only serialization feature.
+
+**Review note (not changed in M3):** `Envelope::schema_version` is currently a public field, so a caller can manually construct or mutate an envelope with a version that the deserializer would reject. Making that field private would be a public API change and would require an agreed getter/compatibility decision. The current constructors always set the supported version, and deserialization rejects unsupported versions. Record this as an API-hardening decision for release review rather than silently changing the established M2 contract.
+
+**Exit criteria:** the implementation conforms to the architecture contract, not merely to its own unit tests. M3 technical audit criteria are met on this branch; this is not formal user acceptance and does not authorize engine integration, Orchestrator implementation, or a merge.
 
 ### M4 — Release readiness and Kernel gate
 
