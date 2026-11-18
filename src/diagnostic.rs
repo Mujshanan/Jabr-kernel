@@ -18,7 +18,7 @@ pub enum Severity {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Diagnostic {
-    /// Stable namespaced code, such as kernel.state.missing or math.parse.invalid.
+    /// Stable namespaced code, such as kernel.input.invalid or math.parse.invalid.
     pub code: String,
     /// Severity.
     pub severity: Severity,
@@ -49,8 +49,8 @@ mod tests {
     use super::*;
     #[test]
     fn code_is_separate_from_display_message() {
-        let d = Diagnostic::new("kernel.state.missing", Severity::Error, "Missing");
-        assert_eq!(d.code, "kernel.state.missing");
+        let d = Diagnostic::new("kernel.input.invalid", Severity::Error, "Invalid input");
+        assert_eq!(d.code, "kernel.input.invalid");
     }
 
     #[cfg(feature = "serde")]

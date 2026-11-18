@@ -1,63 +1,88 @@
 # Jabr Kernel
 
-Jabr Kernel is the small, application-independent Rust foundation shared by the Jabr engineering worksheet ecosystem. It provides generic infrastructure; it is not a calculation engine and does not own worksheet, mathematical, table, or diagram semantics.
+Jabr Kernel is the small, domain-neutral Rust foundation shared by the Jabr engineering worksheet ecosystem. It provides generic infrastructure only. It is not a calculation engine, worksheet engine, or application orchestrator.
 
 ## Repository responsibilities
 
-| Repository | Responsibility |
+| Component | Responsibility |
 | --- | --- |
-| [Jabr-kernel](https://github.com/Mujshanan/Jabr-kernel) | Generic NodeId/Port, Revision, Snapshot<T>, ResultStore<V>, dependency-graph primitives, diagnostics and source spans |
-| [Jabr-math](https://github.com/Mujshanan/Jabr-math) | Mathematical syntax, parsing, AST, values, quantities, units, dimensional rules and evaluation |
-| [Jabr-table](https://github.com/Mujshanan/Jabr-table) | Table structure, stable row/column identities, authored cell text, metadata and table-specific operations |
-| [Jabr-diagram](https://github.com/Mujshanan/Jabr-diagram) | Renderer-independent diagram model, geometry and diagram-domain operations |
-| Jabr-engine (planned; repository not yet created) | Worksheet node mapping, dependency construction, bindings, evaluation orchestration, scheduling and calculation-result lifecycle |
-| [Jabr-UI](https://github.com/Mujshanan/Jabr-UI) | Complete product UI, BlockSuite/Yjs document, MathLive editing, custom blocks and result presentation |
+| **Jabr-kernel** | Generic identifiers, opaque ports, dependency-graph primitives, source spans/locations, structured diagnostics, and versioned envelopes |
+| **Jabr-math** | Mathematical values and quantities, units, expression syntax, parsing, AST, evaluation, mathematical types, scopes, and mathematical dependency semantics |
+| **Jabr-table** | Table document model, cell identity/content, formula text, and table-specific operations |
+| **Jabr-diagram** | Diagram document model, geometry, drawing/editing operations, and rendering semantics |
+| **Orchestrator** | Cross-engine graph construction from engine-provided information, evaluation scheduling, result storage, caching, and change publication |
+| **Jabr-UI** | Unified document experience, worksheet composition, editing interactions, presentation, and UI-side document integration |
+
+Math, Table, and Diagram are independent domain engines. Each remains independently developable and testable. The Orchestrator composes their capabilities. The UI consumes the Orchestrator's application-facing contract; it must not coordinate the engines directly.
 
 ## Dependency direction
 
 ```text
-Jabr-UI
-   |
-   v
-Jabr-engine
-   |------> Jabr-kernel
-   |------> Jabr-math
-   |------> Jabr-table
-   `------> Jabr-diagram (when required)
+                 Jabr-kernel
+                /     |     \
+               v      v      v
+             Math    Table  Diagram
+                \     |     /
+                 v    v    v
+                  Orchestrator
+                       |
+                       v
+                     Jabr-UI
 ```
 
-Kernel is a dependency of the engine libraries, never the other way around. Each repository remains independently buildable and testable. Do not introduce a monorepo or shared cross-repository Cargo workspace.
+Kernel must not depend on Math, Table, Diagram, Orchestrator, or UI. Do not introduce a monorepo or shared cross-repository Cargo workspace as part of Kernel 0.1.
 
-## Kernel API boundary
+## Kernel 0.1 public scope
 
-Kernel should provide only generic, reusable infrastructure:
+Kernel owns exactly six infrastructure areas:
 
-- NodeId and generic Port identity.
-- Revision(u64), a monotonic revision marker serialized as a decimal string in JSON to preserve JavaScript precision.
-- Snapshot<T> { revision, payload }, a complete revisioned payload that follows the existing versioned Envelope serialization conventions.
-- ResultStore<V>, generic storage keyed by NodeId; Kernel does not inspect or interpret V.
-- Generic dependency-graph primitives.
-- Generic diagnostics and source spans.
+1. **Identifiers** — stable, domain-neutral identity and documented validity/serialization rules.
+2. **Ports** — generic endpoint identity associated with a Kernel identifier; port meaning remains opaque to Kernel.
+3. **Dependency graph** — generic graph representation and data-structure operations. A generic topological-order algorithm may report prerequisite-first ordering, but it is not an application scheduler.
+4. **Source spans and locations** — source-independent ranges and location primitives with explicit offset and line/column conventions. The current implementation has a UTF-8 byte-based, half-open `Span`; a `Location` contract remains to be finalized.
+5. **Diagnostics** — generic structured diagnostics with stable owner-namespaced machine-readable codes.
+6. **Versioned envelopes** — a generic transport envelope with an explicit schema version and operation result/diagnostics.
 
-The Engine decides which worksheet objects become graph nodes, how their ports connect, and which Math values are placed in ResultStore<V>. For example, Engine may instantiate ResultStore<MathValue>; Kernel must not depend on or know the Math value type.
+Kernel does not interpret domain payloads or define engine semantics.
 
-Kernel does not own variable names, scopes, assignments, mathematical values, quantities, units, expression parsing, evaluation, table-cell parsing, worksheet recalculation, scheduling, or document undo/redo. BlockSuite/Yjs owns authored document history. Engine owns calculation orchestration.
+## Explicit exclusions
 
-## Current implementation audit
+The following are not Kernel responsibilities:
 
-The current Kernel implementation PR #2 now exposes NodeId, indexed Port, checked Revision, Snapshot<T>, ResultStore<V> keyed by NodeId, generic DependencyGraph, Diagnostic, Span and Envelope<T>. The old generic StateStore<K, V>/StateSnapshot<K, V> surface has been removed from that implementation branch. CI and review are still required; this branch is not a merged release. The older scope/variable-specific state proposal is superseded.
+- Variable/assignment state, scopes, namespaces, revision counters, state lifecycle, change tracking, snapshots, or state history.
+- Calculation-result storage, invalidation, or caching.
+- Cross-engine graph construction or dependency interpretation.
+- Evaluation scheduling, recalculation policy, orchestration, or change publication.
+- Mathematical values, units, parsing, AST, evaluation, or mathematical diagnostics.
+- Table models/cells/operations or diagram models/geometry/rendering.
+- Worksheet/document ownership, BlockSuite/Yjs integration, UI behavior, or persistence policy.
 
-These are audit findings, not claims about the default branch or a merged release. See [development.md](./development.md) for the authoritative development plan and migration sequence.
+These responsibilities belong to the relevant engine, Orchestrator, or UI. They must not be added to Kernel as implementation conveniences.
+
+## M0 repository alignment
+
+The M0 audit identified and removed the out-of-scope `revision`, `snapshot`, and `result_store` modules, their public exports, and tests that depended on them. No migration of those responsibilities to another repository is part of this change.
+
+The following contract details remain open and are recorded in [development.md](./development.md):
+
+- The exact `Location` representation and line/column convention.
+- Whether unsupported envelope schema versions are rejected during deserialization or checked by consumers.
+- Explicit confirmation that `DependencyGraph::topological_order` remains a generic graph algorithm only, not an Orchestrator scheduling API.
+
+M0 is not marked complete until these contract questions are resolved and its exit criteria are reviewed.
 
 ## Development and validation
 
-Use the Rust toolchain pinned by the repository. Run:
+See [development.md](./development.md) for the authoritative scope, M0 audit record, milestones, and integration gates.
+
+Run the repository checks locally:
 
 ```bash
 cargo fmt --all -- --check
+cargo test --all-targets
+cargo test --all-targets --all-features
 cargo clippy --all-targets --all-features -- -D warnings
-cargo test --all-features
 cargo doc --no-deps --all-features
 ```
 
-Keep public APIs documented and generic. Do not add dependencies on Math, Table, Diagram, Engine, BlockSuite, Yjs, or the UI.
+Keep the crate small, independently buildable, and domain-neutral. Do not add dependencies on Math, Table, Diagram, Orchestrator, BlockSuite, Yjs, or the UI.

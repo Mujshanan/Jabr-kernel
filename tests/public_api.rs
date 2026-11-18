@@ -1,7 +1,7 @@
 //! Compile-time and integration checks for the public Kernel API.
 
 use jabr_kernel::{
-    DependencyGraph, Envelope, NodeIdAllocator, Port, ResultStore, Revision, Snapshot,
+    DependencyGraph, Diagnostic, Envelope, NodeIdAllocator, Port, Severity, Span,
 };
 
 #[test]
@@ -13,22 +13,18 @@ fn public_generic_contract_composes_without_domain_types() {
     graph.add_node(node);
     assert_eq!(graph.topological_order().unwrap(), vec![node]);
 
-    let mut results = ResultStore::new();
-    results.insert(node, String::from("opaque engine payload"));
-    assert_eq!(
-        results.get(node).map(String::as_str),
-        Some("opaque engine payload")
-    );
+    let diagnostic = Diagnostic::new(
+        "kernel.input.invalid",
+        Severity::Error,
+        "Invalid input",
+    )
+    .with_span(Span::new(4, 9).unwrap());
 
-    let snapshot = Snapshot::new(Revision(12), results.len());
-    let response: Envelope<Snapshot<usize>> = Envelope::success(snapshot);
-    let snapshot = response.result.unwrap();
-
-    assert_eq!(snapshot.revision, Revision(12));
-    assert_eq!(snapshot.payload, 1);
+    let response: Envelope<String> = Envelope::success("opaque payload".to_owned())
+        .with_diagnostic(diagnostic);
+    assert_eq!(response.schema_version, jabr_kernel::ENVELOPE_SCHEMA_VERSION);
+    assert_eq!(response.result.as_deref(), Some("opaque payload"));
+    assert_eq!(response.diagnostics.len(), 1);
+    assert_eq!(response.diagnostics[0].span.unwrap().start(), 4);
     assert_eq!(port.node_id, node);
-
-    let source_span = jabr_kernel::Span::new(4, 9).unwrap();
-    assert_eq!(source_span.start(), 4);
-    assert_eq!(source_span.end(), 9);
 }
