@@ -1,9 +1,10 @@
 //! Monotonic revision primitive; lifecycle is owned by Engine.
 
 /// Revision counter for one document/session stream.
+///
+/// When serialized for JSON transport, the revision is encoded as a decimal
+/// string. This preserves the full u64 range when consumed by JavaScript.
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serde", serde(transparent))]
 pub struct Revision(pub u64);
 
 impl Revision {
@@ -21,6 +22,30 @@ impl Revision {
             .checked_add(1)
             .map(Self)
             .ok_or(RevisionError::Exhausted)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl serde::Serialize for Revision {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.0.to_string())
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for Revision {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = <String as serde::Deserialize>::deserialize(deserializer)?;
+        value
+            .parse::<u64>()
+            .map(Self)
+            .map_err(serde::de::Error::custom)
     }
 }
 
@@ -57,5 +82,18 @@ mod tests {
             Revision(u64::MAX).checked_next(),
             Err(RevisionError::Exhausted)
         );
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn serde_preserves_full_revision_precision_as_a_decimal_string() {
+        let revision = Revision(u64::MAX);
+        let json = serde_json::to_string(&revision).unwrap();
+        assert_eq!(json, "\"18446744073709551615\"");
+        assert_eq!(
+            serde_json::from_str::<Revision>(&json).unwrap(),
+            revision
+        );
+        assert!(serde_json::from_str::<Revision>("42").is_err());
     }
 }
