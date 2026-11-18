@@ -32,7 +32,7 @@ No circular dependencies. No shared cross-repository Cargo workspace or monorepo
 
 ### 2.2 Revision
 
-Provide Revision(u64) as a strongly typed monotonic counter.
+Provide Revision(u64) as a strongly typed monotonic counter. For JSON transport, serialize it as a decimal string so JavaScript consumers preserve the full u64 precision.
 
 - Revisions increase within one Engine document/session.
 - A restore or undo of authored content creates a new revision; it never rewinds the counter.
@@ -73,7 +73,7 @@ Kernel provides generic graph structure and deterministic graph algorithms. It d
 ### 2.6 Diagnostics and spans
 
 - Diagnostics carry stable, owner-namespaced codes and human-readable messages.
-- Source spans are generic source offsets; Math owns their interpretation against expression text.
+- Source spans are half-open UTF-8 byte offsets; Math owns their interpretation against expression text. Any line/column projection must define columns as UTF-8 byte columns.
 - Kernel must not encode Math parser diagnostics or Table-specific validation rules.
 
 ## 3. Audit of current implementation
