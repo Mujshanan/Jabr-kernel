@@ -1,11 +1,14 @@
 //! Compile-time and integration checks for the public Kernel API.
 
-use jabr_kernel::{DependencyGraph, Diagnostic, Envelope, NodeIdAllocator, Port, Severity, Span};
+use jabr_kernel::{DependencyGraph, Diagnostic, Envelope, NodeIdAllocator, Location, Port, Severity, Span};
 
 #[test]
 fn public_generic_contract_composes_without_domain_types() {
     let node = NodeIdAllocator::default().allocate().unwrap();
     let port = Port::new(node, 0);
+    let location = Location::new(2, 5).unwrap();
+    assert_eq!(location.line(), 2);
+    assert_eq!(location.column(), 5);
 
     let mut graph = DependencyGraph::default();
     graph.add_node(node);
