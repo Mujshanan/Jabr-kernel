@@ -46,7 +46,8 @@ mod tests {
         let json = serde_json::to_string(&envelope).unwrap();
         let decoded: crate::Envelope<Snapshot<&str>> =
             serde_json::from_str(&json).unwrap();
-        assert_eq!(decoded.result.unwrap().revision, Revision(4));
-        assert_eq!(decoded.result.unwrap().payload, "opaque");
+        let restored = decoded.result.unwrap();
+        assert_eq!(restored.revision, Revision(4));
+        assert_eq!(restored.payload, "opaque");
     }
 }
