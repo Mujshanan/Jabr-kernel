@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   test:
-    name: Test and lint
+    name: Test, lint and docs (stable)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,3 +26,17 @@ jobs:
         run: cargo test --all-targets --features serde
       - name: Clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
+      - name: Build documentation
+        run: cargo doc --no-deps --all-features
+        env:
+          RUSTDOCFLAGS: -D warnings
+
+  msrv:
+    name: Minimum supported Rust version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust 1.70
+        uses: dtolnay/rust-toolchain@1.70.0
+      - name: Check all features on MSRV
+        run: cargo check --all-targets --all-features
