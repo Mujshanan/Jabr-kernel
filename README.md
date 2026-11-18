@@ -1,52 +1,63 @@
-# Jabr-kernel
+# Jabr Kernel
 
-Jabr-kernel is the small, application-independent Rust foundation shared by the Jabr engineering calculation ecosystem.
+Jabr Kernel is the small, application-independent Rust foundation shared by the Jabr engineering worksheet ecosystem. It provides generic infrastructure; it is not a calculation engine and does not own worksheet, mathematical, table, or diagram semantics.
 
-Its approved 0.1 architecture contract is documented in [development.md](./development.md). That contract defines the boundaries between Kernel, Math, Diagram, Table, the Jabr API, and Jabr-UI. It is an architectural agreement, not a claim that the described capabilities have already been implemented.
+## Repository responsibilities
 
-## Jabr ecosystem
-
-| Project | Responsibility |
+| Repository | Responsibility |
 | --- | --- |
-| [Jabr-kernel](https://github.com/Mujshanan/Jabr-kernel) | Shared variable state, revisions, change tracking, snapshots, generic dependency-graph primitives, and shared infrastructure |
-| [Jabr-cli / Jabr Math](https://github.com/Mujshanan/Jabr-cli) | Mathematical language, parsing, evaluation, values, quantities, units, and conversions |
-| [Jabr-draw / Jabr Diagram](https://github.com/Mujshanan/Jabr-draw) | Diagram document model, geometry, editing operations, and rendering |
-| [Jabr-table](https://github.com/Mujshanan/Jabr-table) | Table document model, cell identity/content, ranges, and table operations |
-| Jabr API | Cross-engine orchestration, recalculation, and versioned application boundary |
-| [Jabr-UI](https://github.com/Mujshanan/Jabr-UI) | Complete TypeScript application UI, AFFiNE/BlockSuite integration, worksheet interactions, and presentation |
+| [Jabr-kernel](https://github.com/Mujshanan/Jabr-kernel) | Generic NodeId/Port, Revision, Snapshot<T>, ResultStore<V>, dependency-graph primitives, diagnostics and source spans |
+| [Jabr-math](https://github.com/Mujshanan/Jabr-math) | Mathematical syntax, parsing, AST, values, quantities, units, dimensional rules and evaluation |
+| [Jabr-table](https://github.com/Mujshanan/Jabr-table) | Table structure, stable row/column identities, authored cell text, metadata and table-specific operations |
+| [Jabr-diagram](https://github.com/Mujshanan/Jabr-diagram) | Renderer-independent diagram model, geometry and diagram-domain operations |
+| Jabr-engine (planned; repository not yet created) | Worksheet node mapping, dependency construction, bindings, evaluation orchestration, scheduling and calculation-result lifecycle |
+| [Jabr-UI](https://github.com/Mujshanan/Jabr-UI) | Complete product UI, BlockSuite/Yjs document, MathLive editing, custom blocks and result presentation |
 
-## Approved dependency direction
+## Dependency direction
 
 ```text
-                 Jabr-kernel
-                /     |     \
-               v      v      v
-             Math    Draw   Table
-                \     |     /
-                 v    v    v
-                    Jabr API
-                       |
-                       v
-                    Jabr-UI
+Jabr-UI
+   |
+   v
+Jabr-engine
+   |------> Jabr-kernel
+   |------> Jabr-math
+   |------> Jabr-table
+   `------> Jabr-diagram (when required)
 ```
 
-Dependencies point toward Kernel, never from Kernel back to an engine. Math, Draw, and Table remain independently developable repositories. The API composes their capabilities; Jabr-UI consumes the API boundary rather than importing engine internals.
+Kernel is a dependency of the engine libraries, never the other way around. Each repository remains independently buildable and testable. Do not introduce a monorepo or shared cross-repository Cargo workspace.
 
-## Approved architecture principles
+## Kernel API boundary
 
-- Kernel owns shared variable-state lifecycle: state creation and updates, revisions, change tracking, snapshots, and generic dependency-graph primitives.
-- Math owns mathematical values and semantics, including `Value`, `Quantity`, units, conversions, parsing, and evaluation.
-- Table owns cell identity and formula text. Math interprets and evaluates formulas; Kernel provides generic graph primitives; the API coordinates recalculation.
-- The Jabr API owns cross-engine recalculation orchestration.
-- JSON inside a versioned `Envelope` is the initial wire format.
-- Public diagnostic codes are stable and namespaced by owning crate (for example, `kernel.*`, `math.*`, `draw.*`, and `table.*`).
-- Independent repositories remain the initial development model. A monorepo or shared Cargo workspace is not part of the approved 0.1 contract.
-- Keep Kernel minimal, domain-neutral, independently testable, and free of dependencies on Math, Draw, Table, the API, or the UI.
+Kernel should provide only generic, reusable infrastructure:
 
-## First vertical slice
+- NodeId and generic Port identity.
+- Revision(u64), a monotonic revision marker.
+- Snapshot<T> { revision, payload }, a complete revisioned payload that follows the existing versioned Envelope serialization conventions.
+- ResultStore<V>, generic storage keyed by NodeId; Kernel does not inspect or interpret V.
+- Generic dependency-graph primitives.
+- Generic diagnostics and source spans.
 
-The first integration slice is `x = 3 m`: Math parses and evaluates the expression; Kernel supplies identity/state and dependency-graph primitives; the API returns a versioned JSON Envelope; and Jabr-UI renders the value and unit. The slice must verify state revisions and that previously captured snapshots remain unchanged after subsequent updates.
+The Engine decides which worksheet objects become graph nodes, how their ports connect, and which Math values are placed in ResultStore<V>. For example, Engine may instantiate ResultStore<MathValue>; Kernel must not depend on or know the Math value type.
 
-## Project status
+Kernel does not own variable names, scopes, assignments, mathematical values, quantities, units, expression parsing, evaluation, table-cell parsing, worksheet recalculation, scheduling, or document undo/redo. BlockSuite/Yjs owns authored document history. Engine owns calculation orchestration.
 
-The architecture contract is approved for documentation and implementation planning. It does **not** mean the capabilities are implemented. No implementation, repository consolidation, or migration is implied by this document. See [development.md](./development.md) for ownership details, contracts, the vertical-slice acceptance criteria, and deferred decisions.
+## Current implementation audit
+
+The current Kernel implementation PR #2 now exposes NodeId, indexed Port, checked Revision, Snapshot<T>, ResultStore<V> keyed by NodeId, generic DependencyGraph, Diagnostic, Span and Envelope<T>. The old generic StateStore<K, V>/StateSnapshot<K, V> surface has been removed from that implementation branch. CI and review are still required; this branch is not a merged release. The older scope/variable-specific state proposal is superseded.
+
+These are audit findings, not claims about the default branch or a merged release. See [development.md](./development.md) for the authoritative development plan and migration sequence.
+
+## Development and validation
+
+Use the Rust toolchain pinned by the repository. Run:
+
+```bash
+cargo fmt --all -- --check
+cargo clippy --all-targets --all-features -- -D warnings
+cargo test --all-features
+cargo doc --no-deps --all-features
+```
+
+Keep public APIs documented and generic. Do not add dependencies on Math, Table, Diagram, Engine, BlockSuite, Yjs, or the UI.
