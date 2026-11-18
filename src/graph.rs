@@ -24,8 +24,12 @@ impl<N: Ord + Clone> DependencyGraph<N> {
         if removed { for deps in self.dependencies.values_mut() { deps.remove(node); } }
         removed
     }
-    /// Returns deterministic dependency-first order, or the cyclic nodes.
-    pub fn recalculation_order(&self) -> Result<Vec<N>, GraphError<N>> {
+    /// Returns a deterministic prerequisite-first topological order.
+    ///
+    /// If a cycle prevents a complete ordering, `GraphError::Cycle` contains
+    /// every node left unresolved by the topological-sort algorithm. This may
+    /// include nodes downstream of a cycle, not only nodes in the cycle itself.
+    pub fn topological_order(&self) -> Result<Vec<N>, GraphError<N>> {
         let mut remaining: BTreeMap<N, usize> = self.dependencies.iter()
             .map(|(n, deps)| (n.clone(), deps.len())).collect();
         let mut dependents: BTreeMap<N, BTreeSet<N>> = BTreeMap::new();
@@ -60,14 +64,16 @@ impl<N: Ord + Clone> DependencyGraph<N> {
 pub enum GraphError<N> {
     /// Referenced node does not exist.
     UnknownNode(N),
-    /// Nodes left after topological ordering contain a cycle.
+    /// Nodes left unresolved by topological ordering.
+    ///
+    /// This includes cycle members and nodes blocked by those cycles.
     Cycle(Vec<N>),
 }
 impl<N: fmt::Debug> fmt::Display for GraphError<N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::UnknownNode(n) => write!(f, "unknown graph node: {n:?}"),
-            Self::Cycle(nodes) => write!(f, "dependency cycle includes {nodes:?}"),
+            Self::Cycle(nodes) => write!(f, "topological order blocked by a dependency cycle; unresolved nodes: {nodes:?}"),
         }
     }
 }
@@ -81,12 +87,18 @@ mod tests {
         for n in [1, 2, 3, 4] { g.add_node(n); }
         g.add_dependency(3, 1).unwrap(); g.add_dependency(3, 2).unwrap();
         g.add_dependency(4, 3).unwrap();
-        assert_eq!(g.recalculation_order().unwrap(), vec![1, 2, 3, 4]);
+        assert_eq!(g.topological_order().unwrap(), vec![1, 2, 3, 4]);
     }
-    #[test] fn rejects_unknown_nodes_and_cycles() {
-        let mut g = DependencyGraph::default(); g.add_node(1); g.add_node(2);
-        assert_eq!(g.add_dependency(1, 3), Err(GraphError::UnknownNode(3)));
-        g.add_dependency(1, 2).unwrap(); g.add_dependency(2, 1).unwrap();
-        assert_eq!(g.recalculation_order(), Err(GraphError::Cycle(vec![1, 2])));
+    #[test] fn rejects_unknown_nodes_and_reports_cycle_blocked_nodes() {
+        let mut g = DependencyGraph::default();
+        for node in [1, 2, 3] { g.add_node(node); }
+        assert_eq!(g.add_dependency(1, 4), Err(GraphError::UnknownNode(4)));
+        g.add_dependency(1, 2).unwrap();
+        g.add_dependency(2, 1).unwrap();
+        g.add_dependency(3, 2).unwrap();
+
+        // Node 3 is not itself cyclic, but it cannot be ordered because it
+        // depends on a node in the 1 <-> 2 cycle.
+        assert_eq!(g.topological_order(), Err(GraphError::Cycle(vec![1, 2, 3])));
     }
 }
