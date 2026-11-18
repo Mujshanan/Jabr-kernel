@@ -7,7 +7,7 @@ pub const ENVELOPE_SCHEMA_VERSION: u32 = 1;
 
 /// Versioned result and diagnostics container.
 #[derive(Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct Envelope<T> {
     /// Envelope schema version; independent of diagnostic-code versions.
     pub schema_version: u32,
@@ -16,6 +16,39 @@ pub struct Envelope<T> {
     /// Diagnostics emitted by the operation.
     pub diagnostics: Vec<Diagnostic>,
 }
+
+#[cfg(feature = "serde")]
+impl<'de, T> serde::Deserialize<'de> for Envelope<T>
+where
+    T: serde::Deserialize<'de>,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(serde::Deserialize)]
+        struct Repr<T> {
+            schema_version: u32,
+            result: Option<T>,
+            diagnostics: Vec<Diagnostic>,
+        }
+
+        let repr = <Repr<T> as serde::Deserialize>::deserialize(deserializer)?;
+        if repr.schema_version != ENVELOPE_SCHEMA_VERSION {
+            return Err(serde::de::Error::custom(format_args!(
+                "unsupported envelope schema version {}; expected {}",
+                repr.schema_version, ENVELOPE_SCHEMA_VERSION
+            )));
+        }
+
+        Ok(Self {
+            schema_version: repr.schema_version,
+            result: repr.result,
+            diagnostics: repr.diagnostics,
+        })
+    }
+}
+
 impl<T> Envelope<T> {
     /// Wraps a successful result.
     pub fn success(result: T) -> Self {
