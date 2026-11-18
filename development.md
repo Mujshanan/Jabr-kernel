@@ -80,17 +80,20 @@ Kernel provides generic graph structure and deterministic graph algorithms. It d
 
 The current implementation branch has:
 
-| Existing API | Audit result |
+| API | Audit result |
 | --- | --- |
-| NodeId and allocator | Useful generic identity; retain after API and overflow review |
-| DependencyGraph<N> | Correct generic direction; review whether Engine should specialize it to NodeId |
-| Diagnostic / Span | Appropriate generic primitives; preserve owner-defined codes |
-| Envelope<T> | Existing versioned transport shape; align Snapshot serialization with it |
-| StateStore<K, V> | Too broad for the agreed minimal result-store contract; review history and arbitrary-key semantics |
-| StateSnapshot<K, V> | Replace or adapt to Snapshot<T> with a complete payload and explicit Revision |
+| NodeId and allocator | Implemented in PR #2; retain as generic identity |
+| Port | Implemented in PR #2 as a node ID plus opaque index |
+| Revision | Implemented in PR #2 with checked monotonic progression |
+| Snapshot<T> | Implemented in PR #2 as a complete revisioned payload |
+| ResultStore<V> | Implemented in PR #2 and keyed only by NodeId |
+| DependencyGraph<N> | Generic graph retained; Engine decides graph contents and semantics |
+| Diagnostic / Span | Generic primitives retained; domain codes remain owner-defined |
+| Envelope<T> | Existing versioned transport shape; Snapshot is composable as Envelope<Snapshot<T>> |
+| StateStore<K, V> / StateSnapshot<K, V> | Removed from the public module surface in PR #2 |
 | Scope/Variable state proposal | Superseded; do not merge or extend as the Kernel architecture |
 
-The implementation PR is not considered aligned merely because it is generic: its API must match the narrower ResultStore<V> keyed by NodeId and the explicit revision/snapshot contract.
+PR #2 has been updated to the narrower API. Its Rust formatting, default/Serde tests and Clippy still require fresh CI evidence before the milestone can be marked verified.
 
 ## 4. Development milestones
 
@@ -106,13 +109,15 @@ The implementation PR is not considered aligned merely because it is generic: it
 
 ### M1 — Minimal Kernel primitives
 
-- [ ] Finalize NodeId and generic Port.
-- [ ] Add Revision(u64) with checked monotonic progression.
-- [ ] Implement Snapshot<T> { revision, payload }.
-- [ ] Implement ResultStore<V> keyed only by NodeId.
-- [ ] Keep or refine generic DependencyGraph without recalculation policy.
-- [ ] Preserve generic Diagnostic and Span.
-- [ ] Remove or deprecate domain-neutral APIs that duplicate the agreed primitives, after checking branch consumers.
+- [x] Finalize NodeId and generic Port.
+- [x] Add Revision(u64) with checked monotonic progression.
+- [x] Implement Snapshot<T> { revision, payload }.
+- [x] Implement ResultStore<V> keyed only by NodeId.
+- [x] Keep generic DependencyGraph without recalculation policy.
+- [x] Preserve generic Diagnostic and Span.
+- [x] Remove the old StateStore/StateSnapshot public module surface from PR #2.
+
+**Implementation status:** the above API work is present in PR #2; verification remains pending because no workflow run was returned for its latest commit.
 
 **Exit:** the crate exposes only the minimal generic contract and compiles without any Jabr domain dependency.
 
