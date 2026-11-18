@@ -1,8 +1,8 @@
 //! External-consumer contract tests: use only the crate's public API.
 
 use jabr_kernel::{
-    DependencyGraph, Diagnostic, Envelope, GraphError, IdAllocationError, Location,
-    LocationError, NodeId, NodeIdAllocator, Port, Severity, Span, SpanError, MAX_NODE_ID,
+    DependencyGraph, Diagnostic, Envelope, GraphError, IdAllocationError, Location, LocationError,
+    NodeId, NodeIdAllocator, Port, Severity, Span, SpanError, MAX_NODE_ID,
 };
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
@@ -10,7 +10,10 @@ use std::hash::{Hash, Hasher};
 #[test]
 fn identifiers_validate_boundaries_and_expose_stable_value_semantics() {
     assert_eq!(NodeId::new(0), Err(IdAllocationError::Zero));
-    assert_eq!(NodeId::new(MAX_NODE_ID + 1), Err(IdAllocationError::Exhausted));
+    assert_eq!(
+        NodeId::new(MAX_NODE_ID + 1),
+        Err(IdAllocationError::Exhausted)
+    );
 
     let min = NodeId::new(1).unwrap();
     let max = NodeId::new(MAX_NODE_ID).unwrap();
@@ -25,7 +28,10 @@ fn identifiers_validate_boundaries_and_expose_stable_value_semantics() {
     NodeId::new(1).unwrap().hash(&mut second);
     assert_eq!(first.finish(), second.finish());
 
-    assert_eq!(NodeIdAllocator::new(0).unwrap_err(), IdAllocationError::Zero);
+    assert_eq!(
+        NodeIdAllocator::new(0).unwrap_err(),
+        IdAllocationError::Zero
+    );
     assert_eq!(
         NodeIdAllocator::new(MAX_NODE_ID + 1).unwrap_err(),
         IdAllocationError::Exhausted
@@ -41,7 +47,10 @@ fn cloned_allocators_share_sequence_and_independent_allocators_are_independent()
     let clone = allocator.clone();
     assert_eq!(allocator.allocate().unwrap().get(), 10);
     assert_eq!(clone.allocate().unwrap().get(), 11);
-    assert_eq!(NodeIdAllocator::new(10).unwrap().allocate().unwrap().get(), 10);
+    assert_eq!(
+        NodeIdAllocator::new(10).unwrap().allocate().unwrap().get(),
+        10
+    );
 }
 
 #[test]
@@ -69,7 +78,13 @@ fn concurrent_cloned_allocators_issue_unique_monotonic_ids() {
 fn port_identity_includes_node_and_opaque_index() {
     let a = NodeId::new(1).unwrap();
     let b = NodeId::new(2).unwrap();
-    assert_eq!(Port::new(a, 0), Port { node_id: a, index: 0 });
+    assert_eq!(
+        Port::new(a, 0),
+        Port {
+            node_id: a,
+            index: 0
+        }
+    );
     assert_ne!(Port::new(a, 0), Port::new(a, 1));
     assert_ne!(Port::new(a, 0), Port::new(b, 0));
     assert_eq!(Port::new(a, u32::MAX).index, u32::MAX);
@@ -134,7 +149,10 @@ fn graph_reports_self_cycles_and_all_unresolved_nodes() {
     let mut self_cycle = DependencyGraph::default();
     self_cycle.add_node(1);
     self_cycle.add_dependency(1, 1).unwrap();
-    assert_eq!(self_cycle.topological_order(), Err(GraphError::Cycle(vec![1])));
+    assert_eq!(
+        self_cycle.topological_order(),
+        Err(GraphError::Cycle(vec![1]))
+    );
 
     let mut graph = DependencyGraph::default();
     for node in [1, 2, 3, 4, 5] {
@@ -244,15 +262,19 @@ mod serde_contract {
     #[test]
     fn diagnostic_severities_have_stable_snake_case_wire_values() {
         assert_eq!(serde_json::to_string(&Severity::Info).unwrap(), r#""info""#);
-        assert_eq!(serde_json::to_string(&Severity::Warning).unwrap(), r#""warning""#);
-        assert_eq!(serde_json::to_string(&Severity::Error).unwrap(), r#""error""#);
+        assert_eq!(
+            serde_json::to_string(&Severity::Warning).unwrap(),
+            r#""warning""#
+        );
+        assert_eq!(
+            serde_json::to_string(&Severity::Error).unwrap(),
+            r#""error""#
+        );
 
         let diagnostic = Diagnostic::new("kernel.test", Severity::Warning, "message");
         assert_eq!(
-            serde_json::from_str::<Diagnostic>(
-                &serde_json::to_string(&diagnostic).unwrap()
-            )
-            .unwrap(),
+            serde_json::from_str::<Diagnostic>(&serde_json::to_string(&diagnostic).unwrap())
+                .unwrap(),
             diagnostic
         );
     }
@@ -261,28 +283,33 @@ mod serde_contract {
     fn envelopes_round_trip_success_failure_and_optional_result() {
         let success = Envelope::success(vec![1_u32, 2, 3]);
         let json = serde_json::to_string(&success).unwrap();
-        assert_eq!(serde_json::from_str::<Envelope<Vec<u32>>>(&json).unwrap(), success);
+        assert_eq!(
+            serde_json::from_str::<Envelope<Vec<u32>>>(&json).unwrap(),
+            success
+        );
 
-        let failure: Envelope<Vec<u32>> = Envelope::failure(vec![
-            Diagnostic::new("kernel.test.failure", Severity::Error, "failed")
-        ]);
+        let failure: Envelope<Vec<u32>> = Envelope::failure(vec![Diagnostic::new(
+            "kernel.test.failure",
+            Severity::Error,
+            "failed",
+        )]);
         let json = serde_json::to_string(&failure).unwrap();
-        assert_eq!(serde_json::from_str::<Envelope<Vec<u32>>>(&json).unwrap(), failure);
+        assert_eq!(
+            serde_json::from_str::<Envelope<Vec<u32>>>(&json).unwrap(),
+            failure
+        );
     }
 
     #[test]
     fn envelopes_reject_unsupported_versions_and_malformed_required_fields() {
         for version in [0, 2, u32::MAX] {
-            let json = format!(
-                r#"{{"schema_version":{version},"result":null,"diagnostics":[]}}"#
-            );
+            let json = format!(r#"{{"schema_version":{version},"result":null,"diagnostics":[]}}"#);
             assert!(serde_json::from_str::<Envelope<()>>(&json).is_err());
         }
 
-        assert!(serde_json::from_str::<Envelope<()>>(
-            r#"{"schema_version":1,"result":null}"#
-        )
-        .is_err());
+        assert!(
+            serde_json::from_str::<Envelope<()>>(r#"{"schema_version":1,"result":null}"#).is_err()
+        );
         assert!(serde_json::from_str::<Envelope<()>>(
             r#"{"schema_version":1,"result":null,"diagnostics":"not-an-array"}"#
         )
