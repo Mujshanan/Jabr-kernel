@@ -2,7 +2,7 @@
 
 **Architecture baseline:** 2026-11-18  
 **Target:** Jabr Kernel 0.1  
-**Status:** M1 implementation underway; user authorized M1 work on 2026-11-18  
+**Status:** M1 implementation and public-contract test refinement committed; final CI validation pending  
 **Implementation branch:** `feat/kernel-core-implementation-0.1`
 
 This plan implements the locked Jabr architecture without changing responsibility ownership. Updating this plan or completing M0 does not authorize engine integration, Orchestrator implementation, UI integration, or changes to other repositories.
@@ -234,9 +234,9 @@ Implement only:
 - [ ] Port identity, equality, and serialization behavior.
 - [ ] Graph insertion/removal, duplicate operations, unknown references, deterministic behavior, and cycle behavior for any included generic graph algorithm.
 - [ ] Span boundaries, empty spans, reversed ranges, and documented offset conventions.
-- [x] Location convention and validation tests.
+- [ ] Location convention and validation tests.
 - [ ] Diagnostic structure, code namespace conventions, optional span, and serialization.
-- [x] Envelope schema version, result/diagnostic representation, serialization round-trip, and unsupported-version handling.
+- [ ] Envelope schema version, result/diagnostic representation, serialization round-trip, and malformed/unsupported-version handling.
 - [ ] External-consumer compile test using only the public Kernel API.
 - [ ] Compile-time checks that examples use no Math, Table, Diagram, Orchestrator, or UI types.
 
