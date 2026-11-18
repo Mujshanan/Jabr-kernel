@@ -77,7 +77,8 @@ impl Transaction {
         }
         if changed.is_empty() && deleted.is_empty() { return Ok(ChangeSet { revision:state.revision, changed:vec![], deleted:vec![] }); }
         state.revision += 1; state.records=next;
-        for id in &changed { if let Some(record)=state.records.get_mut(id) { record.changed_revision=state.revision; } }
+        let committed_revision = state.revision;
+        for id in &changed { if let Some(record)=state.records.get_mut(id) { record.changed_revision=committed_revision; } }
         Ok(ChangeSet { revision:state.revision, changed:changed.into_iter().collect(), deleted:deleted.into_iter().collect() })
     }
 }
