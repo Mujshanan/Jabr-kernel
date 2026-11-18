@@ -95,4 +95,13 @@ mod tests {
         let decoded: Envelope<u32> = serde_json::from_str(&json).unwrap();
         assert_eq!(decoded, e);
     }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn envelope_rejects_unsupported_schema_versions() {
+        let old = r#"{"schema_version":0,"result":42,"diagnostics":[]}"#;
+        let future = r#"{"schema_version":2,"result":42,"diagnostics":[]}"#;
+        assert!(serde_json::from_str::<Envelope<u32>>(old).is_err());
+        assert!(serde_json::from_str::<Envelope<u32>>(future).is_err());
+    }
 }
