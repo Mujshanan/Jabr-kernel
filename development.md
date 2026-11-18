@@ -2,7 +2,7 @@
 
 **Architecture baseline:** 2026-11-18  
 **Target:** Jabr Kernel 0.1  
-**Status:** M1 implementation and public-contract test refinement committed; final CI validation pending  
+**Status:** M1 implementation and M2 public-contract tests committed; M2 CI validation passed  
 **Implementation branch:** `feat/kernel-core-implementation-0.1`
 
 This plan implements the locked Jabr architecture without changing responsibility ownership. Updating this plan or completing M0 does not authorize engine integration, Orchestrator implementation, UI integration, or changes to other repositories.
@@ -232,7 +232,7 @@ Implement only:
 
 **Implementation:** expanded `tests/public_api.rs` into an external-consumer contract suite using only public Kernel exports. Coverage includes identifier validity and maximum-range allocation, display/order/hash semantics, cloned and concurrent allocator behavior, port identity, graph mutation/deduplication/removal/unknown references/deterministic ordering/cycles, span and location boundaries, diagnostic structure, envelope success/failure, and feature-gated Serde wire behavior including malformed inputs and unsupported versions. No runtime dependency or domain type was added.
 
-**Validation:** the M2 test changes are committed. The connected GitHub workflow-run lookup only returns pull-request-triggered runs and currently returns no run for these branch-push commits, so final CI status has not yet been independently confirmed. Do not treat the checklist as a claim that CI has passed.
+**Validation:** GitHub Actions push run [44362880839](https://github.com/Mujshanan/Jabr-kernel/actions/runs/44362880839) completed successfully on commit `7cbdfeb78069231d5ff7a16b5c0f1881117a5f01`. Formatting, default-feature tests, Serde-feature tests, Clippy, documentation build, and the Rust 1.75 all-feature check all passed. An initial test compile failure was caused by importing `MAX_NODE_ID` from the crate root rather than its existing public `jabr_kernel::id` module; the test import was corrected without changing the production API. A subsequent formatting-only import-order failure was also corrected. M2 test coverage and CI validation are complete; this does not constitute M0/M1/M2 user acceptance or authorize integration.
 
 ### M3 — Architectural and repository validation
 
