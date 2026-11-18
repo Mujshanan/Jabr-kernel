@@ -1,6 +1,8 @@
 //! Compile-time and integration checks for the public Kernel API.
 
-use jabr_kernel::{DependencyGraph, Diagnostic, Envelope, NodeIdAllocator, Location, Port, Severity, Span};
+use jabr_kernel::{
+    DependencyGraph, Diagnostic, Envelope, Location, NodeIdAllocator, Port, Severity, Span,
+};
 
 #[test]
 fn public_generic_contract_composes_without_domain_types() {
