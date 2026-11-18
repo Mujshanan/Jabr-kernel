@@ -5,9 +5,15 @@ use std::collections::BTreeMap;
 use crate::NodeId;
 
 /// Generic result store. Kernel never inspects or interprets V.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct ResultStore<V> {
     values: BTreeMap<NodeId, V>,
+}
+
+impl<V> Default for ResultStore<V> {
+    fn default() -> Self {
+        Self { values: BTreeMap::new() }
+    }
 }
 
 impl<V> ResultStore<V> {
