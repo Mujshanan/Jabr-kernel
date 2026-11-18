@@ -67,7 +67,7 @@ The three M0 contract decisions are recorded in the development plan: `Location`
 
 ## Development and validation
 
-See [development.md](./development.md) for the authoritative scope, M0 audit record, milestones, and integration gates.
+See [development.md](./development.md) for the authoritative scope, M0 audit record, milestones, and integration gates. See [API-COMPATIBILITY.md](./API-COMPATIBILITY.md) for the reviewed Kernel 0.1 public and serialization contract.
 
 Run the repository checks locally:
 
