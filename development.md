@@ -224,7 +224,7 @@ Implement only:
 
 **Implementation:** src/location.rs adds Location and LocationError; src/envelope.rs replaces derived deserialization with version-checked deserialization. The public API integration test now compiles against Location. Unit tests cover invalid zero coordinates, valid coordinates, valid envelope round-trips, and rejection of older and future envelope versions.
 
-**Validation:** CI is running for this M1 change. M1 is not marked complete until formatting, default tests, Serde tests, Clippy, docs, and Rust 1.75 checks pass.
+**Validation:** Passed on the M1 branch: formatting, default tests, Serde tests, Clippy with warnings denied, documentation build with warnings denied, and Rust 1.75 all-feature check. GitHub Actions run [44351582992](https://github.com/Mujshanan/Jabr-kernel/actions/runs/44351582992) completed successfully.
 
 **Exit criteria:** Kernel exposes only the six approved infrastructure areas, enforces the documented source-location and envelope-version contracts, and has no engine or application dependencies.
 
