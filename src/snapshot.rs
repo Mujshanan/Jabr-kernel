@@ -2,10 +2,12 @@
 
 use crate::Revision;
 
-/// A complete payload captured at a particular revision.
+/// A complete, owned payload captured at a particular revision.
 ///
 /// Snapshots are used for persistence/load and full-state publication. They are
-/// distinct from incremental change notifications.
+/// distinct from incremental change notifications. Kernel does not enforce deep
+/// immutability for `T`; callers requiring snapshot isolation must avoid shared
+/// mutable aliases in the payload.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Snapshot<T> {
