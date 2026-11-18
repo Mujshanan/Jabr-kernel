@@ -230,17 +230,9 @@ Implement only:
 
 ### M2 — Unit and public-contract tests
 
-- [x] Identifier construction, invalid values, range boundaries, ordering, hashing, and allocator edge cases.
-- [x] Port identity, equality, and serialization behavior.
-- [x] Graph insertion/removal, duplicate operations, unknown references, deterministic behavior, and cycle behavior for any included generic graph algorithm.
-- [x] Span boundaries, empty spans, reversed ranges, and documented offset conventions.
-- [x] Location convention and validation tests.
-- [x] Diagnostic structure, code namespace conventions, optional span, and serialization.
-- [x] Envelope schema version, result/diagnostic representation, serialization round-trip, and malformed/unsupported-version handling.
-- [x] External-consumer compile test using only the public Kernel API.
-- [x] Compile-time checks that examples use no Math, Table, Diagram, Orchestrator, or UI types.
+**Implementation:** expanded `tests/public_api.rs` into an external-consumer contract suite using only public Kernel exports. Coverage includes identifier validity and maximum-range allocation, display/order/hash semantics, cloned and concurrent allocator behavior, port identity, graph mutation/deduplication/removal/unknown references/deterministic ordering/cycles, span and location boundaries, diagnostic structure, envelope success/failure, and feature-gated Serde wire behavior including malformed inputs and unsupported versions. No runtime dependency or domain type was added.
 
-**Exit criteria:** the six public contracts are independently testable, documented, and consumable without domain dependencies.
+**Validation:** the M2 test changes are committed. The connected GitHub workflow-run lookup only returns pull-request-triggered runs and currently returns no run for these branch-push commits, so final CI status has not yet been independently confirmed. Do not treat the checklist as a claim that CI has passed.
 
 ### M3 — Architectural and repository validation
 
