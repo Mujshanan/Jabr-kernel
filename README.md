@@ -59,11 +59,11 @@ The following are not Kernel responsibilities:
 
 These responsibilities belong to the relevant engine, Orchestrator, or UI. They must not be added to Kernel as implementation conveniences.
 
-## M0 repository alignment
+## M0 and M1
 
 The M0 audit compared the restructuring against the pre-change source, verified the retained public APIs against their implementations, and removed the out-of-scope `revision`, `snapshot`, and `result_store` modules and exports. Their code and tests were not migrated elsewhere; the removed behavior inventory is recorded in [development.md](./development.md).
 
-The M0 contract decisions are settled: `Location` uses one-based line/column coordinates with Unicode-scalar columns; envelope deserialization rejects schema versions other than the current version; and `DependencyGraph::topological_order` remains a generic graph algorithm, never an Orchestrator scheduler. M0 was accepted and M1 implements the two previously outstanding API behaviors. Envelope deserialization rejects both older and future unsupported schema versions.
+The three M0 contract decisions are recorded in the development plan: `Location` uses one-based line/column coordinates with Unicode-scalar columns; envelope deserialization rejects schema versions other than the current version; and `DependencyGraph::topological_order` remains a generic graph algorithm, never an Orchestrator scheduler. M0 was accepted and M1 implements the two previously outstanding API behaviors. Envelope deserialization rejects both older and future unsupported schema versions.
 
 ## Development and validation
 
