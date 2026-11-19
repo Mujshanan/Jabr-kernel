@@ -27,9 +27,13 @@ pub struct Envelope<T> {
 
 #[cfg(feature = "serde")]
 impl<'de, T> serde::Deserialize<'de> for Envelope<T>
-where T: serde::Deserialize<'de> {
+where
+    T: serde::Deserialize<'de>,
+{
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where D: serde::Deserializer<'de> {
+    where
+        D: serde::Deserializer<'de>,
+    {
         #[derive(serde::Deserialize)]
         struct Repr<T> {
             schema_version: u32,
@@ -54,11 +58,19 @@ where T: serde::Deserialize<'de> {
 impl<T> Envelope<T> {
     /// Wraps a successful result.
     pub fn success(result: T) -> Self {
-        Self { schema_version: ENVELOPE_SCHEMA_VERSION, result: Some(result), diagnostics: Vec::new() }
+        Self {
+            schema_version: ENVELOPE_SCHEMA_VERSION,
+            result: Some(result),
+            diagnostics: Vec::new(),
+        }
     }
     /// Wraps diagnostics without a result.
     pub fn failure(diagnostics: Vec<Diagnostic>) -> Self {
-        Self { schema_version: ENVELOPE_SCHEMA_VERSION, result: None, diagnostics }
+        Self {
+            schema_version: ENVELOPE_SCHEMA_VERSION,
+            result: None,
+            diagnostics,
+        }
     }
     /// Appends a diagnostic without changing the envelope schema version.
     pub fn with_diagnostic(mut self, diagnostic: Diagnostic) -> Self {
@@ -75,7 +87,9 @@ mod tests {
     #[test]
     fn success_can_retain_non_fatal_diagnostics() {
         let envelope = Envelope::success(42).with_diagnostic(Diagnostic::new(
-            "math.parse.note", Severity::Info, "parsed with a note",
+            "math.parse.note",
+            Severity::Info,
+            "parsed with a note",
         ));
         assert_eq!(envelope.schema_version, ENVELOPE_SCHEMA_VERSION);
         assert_eq!(envelope.result, Some(42));
@@ -97,7 +111,11 @@ mod tests {
     #[test]
     fn serde_round_trips_result_and_diagnostics_with_optional_spans() {
         let envelope = Envelope::success(42_u32)
-            .with_diagnostic(Diagnostic::new("math.parse.note", Severity::Warning, "review input"))
+            .with_diagnostic(Diagnostic::new(
+                "math.parse.note",
+                Severity::Warning,
+                "review input",
+            ))
             .with_diagnostic(
                 Diagnostic::new("math.parse.invalid", Severity::Error, "invalid token")
                     .with_span(Span::new(4, 9).unwrap()),
