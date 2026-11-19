@@ -1,5 +1,8 @@
-//! Verify that downstream engines can depend on the standalone API crate.
-use jabr_kernel_api::{Diagnostic, Envelope, Location, NodeIdAllocator, Port, Severity, Span};
+//! Verify downstream use of the standalone API crate and state contracts.
+use jabr_kernel_api::{
+    Diagnostic, Envelope, Location, NodeId, NodeIdAllocator, Port, Revision, Severity, Span,
+    State,
+};
 
 #[test]
 fn api_crate_exposes_contract_without_kernel_implementation() {
@@ -16,4 +19,29 @@ fn api_crate_exposes_contract_without_kernel_implementation() {
     assert_eq!(envelope.schema_version(), 1);
     assert_eq!(envelope.result, None);
     assert_eq!(location.column(), 3);
+}
+
+fn id(raw: u64) -> NodeId {
+    NodeId::new(raw).unwrap()
+}
+
+#[test]
+fn downstream_state_revision_and_snapshot_contract() {
+    let mut state = State::new();
+    assert_eq!(state.revision(), Revision::INITIAL);
+
+    let first = state.set(id(7), String::from("value")).unwrap();
+    assert_eq!(first.get(), 1);
+    let snapshot = state.snapshot();
+
+    state.set(id(7), String::from("updated")).unwrap();
+    assert_eq!(snapshot.revision(), first);
+    assert_eq!(snapshot.get(id(7)).map(String::as_str), Some("value"));
+    assert_eq!(state.get(id(7)).map(String::as_str), Some("updated"));
+
+    let before_missing_remove = state.revision();
+    assert_eq!(state.remove(id(99)).unwrap(), None);
+    assert_eq!(state.revision(), before_missing_remove);
+    assert_eq!(state.remove(id(7)).unwrap(), Some(String::from("updated")));
+    assert_eq!(state.revision().get(), 3);
 }
