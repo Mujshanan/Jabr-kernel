@@ -12,16 +12,30 @@ pub use jabr_kernel_api::{
 };
 
 /// Compatibility module; the public contract is owned by `jabr-kernel-api`.
-pub mod diagnostic { pub use jabr_kernel_api::diagnostic::*; }
+pub mod diagnostic {
+    pub use jabr_kernel_api::diagnostic::*;
+}
 /// Compatibility module; the public contract is owned by `jabr-kernel-api`.
-pub mod envelope { pub use jabr_kernel_api::envelope::*; }
+pub mod envelope {
+    pub use jabr_kernel_api::envelope::*;
+}
 /// Compatibility module; the public contract is owned by `jabr-kernel-api`.
-pub mod graph { pub use jabr_kernel_api::graph::*; }
+pub mod graph {
+    pub use jabr_kernel_api::graph::*;
+}
 /// Compatibility module; the public contract is owned by `jabr-kernel-api`.
-pub mod id { pub use jabr_kernel_api::id::*; }
+pub mod id {
+    pub use jabr_kernel_api::id::*;
+}
 /// Compatibility module; the public contract is owned by `jabr-kernel-api`.
-pub mod location { pub use jabr_kernel_api::location::*; }
+pub mod location {
+    pub use jabr_kernel_api::location::*;
+}
 /// Compatibility module; the public contract is owned by `jabr-kernel-api`.
-pub mod port { pub use jabr_kernel_api::port::*; }
+pub mod port {
+    pub use jabr_kernel_api::port::*;
+}
 /// Compatibility module; the public contract is owned by `jabr-kernel-api`.
-pub mod span { pub use jabr_kernel_api::span::*; }
+pub mod span {
+    pub use jabr_kernel_api::span::*;
+}
