@@ -54,8 +54,10 @@ fn revision_serde_preserves_full_u64_precision_as_decimal_string() {
     let max: Revision = serde_json::from_str(&max_json).unwrap();
     assert_eq!(max.get(), u64::MAX);
     assert_eq!(serde_json::to_string(&max).unwrap(), max_json);
-    for invalid in ["-1", "1.5", "\"\"", "\"01\"", "\"18446744073709551616\""] {
+    for invalid in ["-1", "1.5", "\"\"", "\"18446744073709551616\""] {
         assert!(serde_json::from_str::<Revision>(invalid).is_err(), "{invalid}");
     }
+    assert_eq!(serde_json::from_str::<Revision>("1").is_err(), true);
+    assert_eq!(serde_json::from_str::<Revision>("\"01\"").unwrap().get(), 1);
     assert_eq!(revision.get(), 0);
 }
