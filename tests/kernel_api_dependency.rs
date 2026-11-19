@@ -1,7 +1,6 @@
 //! Verify downstream use of the standalone API crate and state contracts.
 use jabr_kernel_api::{
-    Diagnostic, Envelope, Location, NodeId, NodeIdAllocator, Port, Revision, Severity, Span,
-    State,
+    Diagnostic, Envelope, Location, NodeId, NodeIdAllocator, Port, Revision, Severity, Span, State,
 };
 
 #[test]
