@@ -8,7 +8,9 @@ use jabr_kernel::{
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
-fn node(value: u64) -> NodeId { NodeId::new(value).unwrap() }
+fn node(value: u64) -> NodeId {
+    NodeId::new(value).unwrap()
+}
 
 #[test]
 fn identifiers_validate_boundaries_and_expose_stable_value_semantics() {
@@ -122,23 +124,36 @@ fn graph_handles_empty_duplicate_and_removal_operations() {
 fn graph_distinguishes_unknown_dependent_and_prerequisite() {
     let mut graph = DependencyGraph::default();
     graph.add_node(node(1));
-    assert_eq!(graph.add_dependency(node(9), node(1)), Err(GraphError::UnknownNode(node(9))));
-    assert_eq!(graph.add_dependency(node(1), node(9)), Err(GraphError::UnknownNode(node(9))));
+    assert_eq!(
+        graph.add_dependency(node(9), node(1)),
+        Err(GraphError::UnknownNode(node(9)))
+    );
+    assert_eq!(
+        graph.add_dependency(node(1), node(9)),
+        Err(GraphError::UnknownNode(node(9)))
+    );
 }
 
 #[test]
 fn graph_order_is_deterministic_across_insertion_orders() {
     let mut first = DependencyGraph::default();
-    for value in [4, 3, 2, 1] { first.add_node(node(value)); }
+    for value in [4, 3, 2, 1] {
+        first.add_node(node(value));
+    }
     first.add_dependency(node(4), node(2)).unwrap();
     first.add_dependency(node(3), node(1)).unwrap();
 
     let mut second = DependencyGraph::default();
-    for value in [1, 2, 3, 4] { second.add_node(node(value)); }
+    for value in [1, 2, 3, 4] {
+        second.add_node(node(value));
+    }
     second.add_dependency(node(3), node(1)).unwrap();
     second.add_dependency(node(4), node(2)).unwrap();
 
-    assert_eq!(first.topological_order().unwrap(), vec![node(1), node(2), node(3), node(4)]);
+    assert_eq!(
+        first.topological_order().unwrap(),
+        vec![node(1), node(2), node(3), node(4)]
+    );
     assert_eq!(first.topological_order(), second.topological_order());
 }
 
@@ -147,14 +162,22 @@ fn graph_reports_only_actual_self_cycle_members() {
     let mut self_cycle = DependencyGraph::default();
     self_cycle.add_node(node(1));
     self_cycle.add_dependency(node(1), node(1)).unwrap();
-    assert_eq!(self_cycle.topological_order(), Err(GraphError::Cycle(vec![node(1)])));
+    assert_eq!(
+        self_cycle.topological_order(),
+        Err(GraphError::Cycle(vec![node(1)]))
+    );
 
     let mut graph = DependencyGraph::default();
-    for value in [1, 2, 3, 4, 5] { graph.add_node(node(value)); }
+    for value in [1, 2, 3, 4, 5] {
+        graph.add_node(node(value));
+    }
     graph.add_dependency(node(1), node(2)).unwrap();
     graph.add_dependency(node(2), node(1)).unwrap();
     graph.add_dependency(node(3), node(2)).unwrap();
-    assert_eq!(graph.topological_order(), Err(GraphError::Cycle(vec![node(1), node(2)])));
+    assert_eq!(
+        graph.topological_order(),
+        Err(GraphError::Cycle(vec![node(1), node(2)]))
+    );
 }
 
 #[test]
