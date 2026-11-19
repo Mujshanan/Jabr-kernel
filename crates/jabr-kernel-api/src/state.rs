@@ -143,9 +143,9 @@ mod tests {
     fn overflow_leaves_set_and_remove_unchanged() {
         let mut state = State::new();
         state.set(id(1), "original").unwrap();
-        state.revision = Revision(u64::MAX);
+        state.revision = Revision::from_raw_for_test(u64::MAX);
         let error = RevisionError {
-            current: Revision(u64::MAX),
+            current: Revision::from_raw_for_test(u64::MAX),
         };
 
         assert_eq!(state.set(id(1), "replacement"), Err(error));
