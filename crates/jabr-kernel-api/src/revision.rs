@@ -42,9 +42,6 @@ impl serde::Serialize for Revision {
 impl<'de> serde::Deserialize<'de> for Revision {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let value = <String as serde::Deserialize>::deserialize(deserializer)?;
-        if value.is_empty() || (value.len() > 1 && value.starts_with('0')) {
-            return Err(serde::de::Error::custom("revision must be a canonical unsigned decimal string"));
-        }
         value.parse::<u64>().map(Self).map_err(serde::de::Error::custom)
     }
 }
