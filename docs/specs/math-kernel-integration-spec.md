@@ -5,7 +5,7 @@
 **Implementation:** `jabr-kernel`  
 **Orchestration owner:** planned Jabr Engine subsystem  
 **Version target:** `kernel-api-v1`  
-**Freeze rule:** This document is a proposal until reviewed and explicitly accepted.
+**Freeze rule:** The ownership and execution model in this document records the accepted architecture baseline. Exact Rust DTOs, serialization details, and implementation behavior remain subject to API tests and explicit compatibility review.
 
 ## 1. Purpose and governing decision
 
