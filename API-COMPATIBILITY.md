@@ -39,7 +39,7 @@ Envelope schema versioning is separate from diagnostic-code ownership/versioning
 - `Envelope::schema_version` is private. Constructors set it to the supported version, and consumers can inspect it through `schema_version()`. This prevents callers from constructing or mutating an unsupported version through the public API.
 - Allocator-generated IDs are only unique within the allocator/document namespace chosen by the owning application. Independent allocators can generate equal numeric IDs.
 - Graph ordering is deterministic for a given graph and node ordering, but it does not prescribe evaluation, scheduling, parallelism, invalidation, or result storage.
-- Kernel does not own variables, scopes, revisions, snapshots, result stores, caching, recalculation, cross-engine dependency interpretation, or change publication.
+- The currently implemented API does not yet include State, Revision, or Snapshot. Their proposed ownership and exact interfaces are documented in [STATE-REVISION-SNAPSHOT-API.md](./docs/STATE-REVISION-SNAPSHOT-API.md); that proposal is not implemented or accepted yet. Mathematical scopes, dependency interpretation, recalculation, result stores, and caching remain outside Kernel.
 
 ## Dependency and toolchain boundary
 
