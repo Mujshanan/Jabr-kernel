@@ -38,7 +38,8 @@ The `jabr-kernel-api` crate owns the public definitions for the generic infrastr
 3. **Dependency graph** — generic graph representation and data-structure operations. A generic topological-order algorithm may report prerequisite-first ordering, but it is not an application scheduler.
 4. **Source spans and locations** — source-independent ranges and location primitives with explicit offset and line/column conventions. The current implementation has a UTF-8 byte-based, half-open `Span`. `Location` is implemented with validated one-based line and Unicode-scalar column coordinates. Its fields are private; construct it with `Location::new` and read them with `line()` and `column()`. `Span` remains the UTF-8 byte-based, half-open range.
 5. **Diagnostics** — generic structured diagnostics with stable owner-namespaced machine-readable codes.
-6. **Versioned envelopes** — a generic transport envelope with an explicit schema version and operation result/diagnostics. Serde deserialization accepts only the current schema version; migrations require an explicit adapter.\n7. **Shared state, revisions, and snapshots** — the proposed contract is documented in [STATE-REVISION-SNAPSHOT-API.md](./docs/STATE-REVISION-SNAPSHOT-API.md). It is not implemented or accepted yet; implementation is gated on explicit contract approval.
+6. **Versioned envelopes** — a generic transport envelope with an explicit schema version and operation result/diagnostics. Serde deserialization accepts only the current schema version; migrations require an explicit adapter.
+7. **Shared state, revisions, and snapshots** — the proposed contract is documented in [STATE-REVISION-SNAPSHOT-API.md](./docs/STATE-REVISION-SNAPSHOT-API.md). It is not implemented or accepted yet; implementation is gated on explicit contract approval.
 
 Kernel does not interpret domain payloads or define engine semantics.
 
