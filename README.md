@@ -31,14 +31,14 @@ Math, Table, Diagram, Orchestrator, and UI depend on `jabr-kernel-api` whenever 
 
 ## Kernel 0.1 public scope
 
-The `jabr-kernel-api` crate owns the public definitions for six infrastructure areas; `jabr-kernel` provides their implementation where behavior is required:
+The `jabr-kernel-api` crate owns the public definitions for the generic infrastructure contract; `jabr-kernel` provides their implementation where behavior is required:
 
 1. **Identifiers** — stable, domain-neutral identity and documented validity/serialization rules.
 2. **Ports** — generic endpoint identity associated with a Kernel identifier; port meaning remains opaque to Kernel.
 3. **Dependency graph** — generic graph representation and data-structure operations. A generic topological-order algorithm may report prerequisite-first ordering, but it is not an application scheduler.
 4. **Source spans and locations** — source-independent ranges and location primitives with explicit offset and line/column conventions. The current implementation has a UTF-8 byte-based, half-open `Span`. `Location` is implemented with validated one-based line and Unicode-scalar column coordinates. Its fields are private; construct it with `Location::new` and read them with `line()` and `column()`. `Span` remains the UTF-8 byte-based, half-open range.
 5. **Diagnostics** — generic structured diagnostics with stable owner-namespaced machine-readable codes.
-6. **Versioned envelopes** — a generic transport envelope with an explicit schema version and operation result/diagnostics. Serde deserialization accepts only the current schema version; migrations require an explicit adapter.
+6. **Versioned envelopes** — a generic transport envelope with an explicit schema version and operation result/diagnostics. Serde deserialization accepts only the current schema version; migrations require an explicit adapter.\n7. **Shared state, revisions, and snapshots** — the proposed contract is documented in [STATE-REVISION-SNAPSHOT-API.md](./docs/STATE-REVISION-SNAPSHOT-API.md). It is not implemented or accepted yet; implementation is gated on explicit contract approval.
 
 Kernel does not interpret domain payloads or define engine semantics.
 
@@ -46,7 +46,7 @@ Kernel does not interpret domain payloads or define engine semantics.
 
 The following are not Kernel responsibilities:
 
-- Variable/assignment state, scopes, namespaces, revision counters, state lifecycle, change tracking, snapshots, or state history.
+- Mathematical variable semantics, scopes, namespaces, and mathematical state interpretation. Generic object-state storage, revisions, and snapshots are proposed separately and are not yet implemented.
 - Calculation-result storage, invalidation, or caching.
 - Cross-engine graph construction or dependency interpretation.
 - Evaluation scheduling, recalculation policy, orchestration, or change publication.
@@ -64,7 +64,7 @@ The three M0 contract decisions are recorded in the development plan: `Location`
 
 ## Development and validation
 
-See [development.md](./development.md) for the authoritative scope, M0 audit record, milestones, and integration gates. See [API-COMPATIBILITY.md](./API-COMPATIBILITY.md) for the reviewed Kernel 0.1 public and serialization contract, and [crates/jabr-kernel-api/README.md](./crates/jabr-kernel-api/README.md) for direct engine-consumer guidance.
+See [development.md](./development.md) for the historical M0 audit record, milestones, and integration gates. The proposed shared-state contract is documented in [STATE-REVISION-SNAPSHOT-API.md](./docs/STATE-REVISION-SNAPSHOT-API.md); it supersedes the earlier blanket exclusion of generic state/revision/snapshot infrastructure once explicitly approved. See [API-COMPATIBILITY.md](./API-COMPATIBILITY.md) for the reviewed Kernel 0.1 public and serialization contract, and [crates/jabr-kernel-api/README.md](./crates/jabr-kernel-api/README.md) for direct engine-consumer guidance.
 
 Run the repository checks locally:
 
