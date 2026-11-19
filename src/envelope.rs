@@ -1,16 +1,42 @@
 //! Generic versioned JSON transport container.
-//! Cross-engine graph construction and execution coordination are owned by the Orchestrator.
+//!
+//! Cross-engine graph construction and execution coordination belong to the
+//! Jabr Engine layer, not to Kernel.
 use crate::Diagnostic;
 
-/// Initial version of the envelope schema.
+/// Current version of the envelope wire schema.
 pub const ENVELOPE_SCHEMA_VERSION: u32 = 1;
 
 /// Versioned result and diagnostics container.
+///
+/// The schema version is fixed when the envelope is constructed or
+/// deserialized. It cannot be changed by consumers.
+///
+/// `result` is present for successful operations and absent for failures.
+/// Diagnostics may accompany either outcome.
+///
+/// # Examples
+///
+/// ```
+/// use jabr_kernel::{Envelope, ENVELOPE_SCHEMA_VERSION};
+///
+/// let envelope = Envelope::success(42);
+/// assert_eq!(envelope.schema_version(), ENVELOPE_SCHEMA_VERSION);
+/// assert_eq!(envelope.result, Some(42));
+/// ```
+///
+/// The schema version is intentionally read-only:
+///
+/// ```compile_fail
+/// use jabr_kernel::Envelope;
+///
+/// let mut envelope = Envelope::success(42);
+/// envelope.schema_version = 2; // private field
+/// ```
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct Envelope<T> {
-    /// Envelope schema version; independent of diagnostic-code versions.
-    pub schema_version: u32,
+    schema_version: u32,
     /// Optional operation result.
     pub result: Option<T>,
     /// Diagnostics emitted by the operation.
@@ -50,7 +76,7 @@ where
 }
 
 impl<T> Envelope<T> {
-    /// Wraps a successful result.
+    /// Wraps a successful result using the current schema version.
     pub fn success(result: T) -> Self {
         Self {
             schema_version: ENVELOPE_SCHEMA_VERSION,
@@ -58,7 +84,8 @@ impl<T> Envelope<T> {
             diagnostics: Vec::new(),
         }
     }
-    /// Wraps diagnostics without a result.
+
+    /// Wraps diagnostics without a result using the current schema version.
     pub fn failure(diagnostics: Vec<Diagnostic>) -> Self {
         Self {
             schema_version: ENVELOPE_SCHEMA_VERSION,
@@ -66,6 +93,12 @@ impl<T> Envelope<T> {
             diagnostics,
         }
     }
+
+    /// Returns the immutable wire-schema version.
+    pub const fn schema_version(&self) -> u32 {
+        self.schema_version
+    }
+
     /// Appends a diagnostic without changing the envelope schema version.
     pub fn with_diagnostic(mut self, diagnostic: Diagnostic) -> Self {
         self.diagnostics.push(diagnostic);
@@ -76,24 +109,27 @@ impl<T> Envelope<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
-    fn version_is_explicit() {
-        let e = Envelope::success(42).with_diagnostic(Diagnostic::new(
+    fn version_is_fixed_at_construction() {
+        let envelope = Envelope::success(42).with_diagnostic(Diagnostic::new(
             "math.parse.note",
             crate::Severity::Info,
             "parsed",
         ));
-        assert_eq!(e.schema_version, 1);
-        assert_eq!(e.result, Some(42));
-        assert_eq!(e.diagnostics.len(), 1);
+        assert_eq!(envelope.schema_version(), ENVELOPE_SCHEMA_VERSION);
+        assert_eq!(envelope.result, Some(42));
+        assert_eq!(envelope.diagnostics.len(), 1);
     }
+
     #[cfg(feature = "serde")]
     #[test]
     fn envelope_round_trips_json() {
-        let e = Envelope::success(42_u32);
-        let json = serde_json::to_string(&e).unwrap();
+        let envelope = Envelope::success(42_u32);
+        let json = serde_json::to_string(&envelope).unwrap();
         let decoded: Envelope<u32> = serde_json::from_str(&json).unwrap();
-        assert_eq!(decoded, e);
+        assert_eq!(decoded, envelope);
+        assert_eq!(decoded.schema_version(), ENVELOPE_SCHEMA_VERSION);
     }
 
     #[cfg(feature = "serde")]
