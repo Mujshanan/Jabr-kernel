@@ -63,3 +63,16 @@ fn revision_serde_preserves_full_u64_precision_as_decimal_string() {
     assert_eq!(serde_json::from_str::<Revision>("\"01\"").unwrap().get(), 1);
     assert_eq!(revision.get(), 0);
 }
+
+#[test]
+fn state_assignment_does_not_require_value_equality() {
+    struct Opaque(u8);
+
+    let mut state = State::new();
+    state.set(id(3), Opaque(7)).unwrap();
+    let first = state.revision();
+    state.set(id(3), Opaque(7)).unwrap();
+
+    assert_eq!(state.revision().get(), first.get() + 1);
+    assert_eq!(state.get(id(3)).map(|value| value.0), Some(7));
+}
