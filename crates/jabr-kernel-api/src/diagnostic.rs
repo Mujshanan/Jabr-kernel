@@ -29,15 +29,24 @@ pub struct Diagnostic {
 impl Diagnostic {
     /// Creates a diagnostic without a source span.
     pub fn new(code: impl Into<String>, severity: Severity, message: impl Into<String>) -> Self {
-        Self { code: code.into(), severity, message: message.into(), span: None }
+        Self {
+            code: code.into(),
+            severity,
+            message: message.into(),
+            span: None,
+        }
     }
     /// Adds a source span.
-    pub fn with_span(mut self, span: Span) -> Self { self.span = Some(span); self }
+    pub fn with_span(mut self, span: Span) -> Self {
+        self.span = Some(span);
+        self
+    }
 }
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test] fn code_is_machine_readable() {
+    #[test]
+    fn code_is_machine_readable() {
         let d = Diagnostic::new("kernel.input.invalid", Severity::Error, "Invalid input");
         assert_eq!(d.code, "kernel.input.invalid");
     }
