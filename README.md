@@ -31,7 +31,7 @@ Math, Table, Diagram, Orchestrator, and UI depend on `jabr-kernel-api` whenever 
 
 ## Kernel 0.1 public scope
 
-The `jabr-kernel-api` crate owns the public definitions for the generic infrastructure contract; `jabr-kernel` provides their implementation where behavior is required:
+The `jabr-kernel-api` crate owns the public definitions and minimal generic behavior for the infrastructure contract; `jabr-kernel` is the Kernel implementation facade and preserves the established crate paths through re-exports:
 
 1. **Identifiers** — stable, domain-neutral identity and documented validity/serialization rules.
 2. **Ports** — generic endpoint identity associated with a Kernel identifier; port meaning remains opaque to Kernel.
@@ -39,7 +39,7 @@ The `jabr-kernel-api` crate owns the public definitions for the generic infrastr
 4. **Source spans and locations** — source-independent ranges and location primitives with explicit offset and line/column conventions. The current implementation has a UTF-8 byte-based, half-open `Span`. `Location` is implemented with validated one-based line and Unicode-scalar column coordinates. Its fields are private; construct it with `Location::new` and read them with `line()` and `column()`. `Span` remains the UTF-8 byte-based, half-open range.
 5. **Diagnostics** — generic structured diagnostics with stable owner-namespaced machine-readable codes.
 6. **Versioned envelopes** — a generic transport envelope with an explicit schema version and operation result/diagnostics. Serde deserialization accepts only the current schema version; migrations require an explicit adapter.
-7. **Shared state, revisions, and snapshots** — the proposed contract is documented in [STATE-REVISION-SNAPSHOT-API.md](./docs/STATE-REVISION-SNAPSHOT-API.md). It is not implemented or accepted yet; implementation is gated on explicit contract approval.
+7. **Shared state, revisions, and snapshots** — `State<T>` stores opaque values by `NodeId`, `Revision` tracks committed changes with checked monotonic increments, and `Snapshot<T>` captures an immutable point-in-time copy. The approved and implemented contract is documented in [STATE-REVISION-SNAPSHOT-API.md](./docs/STATE-REVISION-SNAPSHOT-API.md).
 
 Kernel does not interpret domain payloads or define engine semantics.
 
