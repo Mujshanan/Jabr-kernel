@@ -16,7 +16,6 @@ pub struct DependencyGraph {
     dependents: BTreeMap<NodeId, BTreeSet<NodeId>>,
 }
 
-
 impl DependencyGraph {
     /// Inserts a node if absent.
     pub fn add_node(&mut self, node: NodeId) {
