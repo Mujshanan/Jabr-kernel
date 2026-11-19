@@ -26,24 +26,37 @@ impl Span {
     }
 
     /// Returns the inclusive starting byte offset.
-    pub const fn start(self) -> usize { self.start }
+    pub const fn start(self) -> usize {
+        self.start
+    }
 
     /// Returns the exclusive ending byte offset.
-    pub const fn end(self) -> usize { self.end }
+    pub const fn end(self) -> usize {
+        self.end
+    }
 
     /// Returns the span's byte length.
-    pub const fn len(self) -> usize { self.end - self.start }
+    pub const fn len(self) -> usize {
+        self.end - self.start
+    }
 
     /// Returns whether the span is empty.
-    pub const fn is_empty(self) -> bool { self.start == self.end }
+    pub const fn is_empty(self) -> bool {
+        self.start == self.end
+    }
 }
 
 #[cfg(feature = "serde")]
 impl<'de> serde::Deserialize<'de> for Span {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where D: serde::Deserializer<'de> {
+    where
+        D: serde::Deserializer<'de>,
+    {
         #[derive(serde::Deserialize)]
-        struct Repr { start: usize, end: usize }
+        struct Repr {
+            start: usize,
+            end: usize,
+        }
 
         let repr = <Repr as serde::Deserialize>::deserialize(deserializer)?;
         Self::new(repr.start, repr.end).map_err(serde::de::Error::custom)
@@ -77,7 +90,10 @@ mod tests {
 
     #[test]
     fn validates_half_open_ranges_and_allows_empty_spans() {
-        assert_eq!(Span::new(8, 3), Err(SpanError::Reversed { start: 8, end: 3 }));
+        assert_eq!(
+            Span::new(8, 3),
+            Err(SpanError::Reversed { start: 8, end: 3 })
+        );
         let span = Span::new(3, 7).unwrap();
         assert_eq!((span.start(), span.end(), span.len()), (3, 7, 4));
         assert!(!span.is_empty());
@@ -113,7 +129,10 @@ mod tests {
             r#"{"start":1.5,"end":2}"#,
             r#"{"start":8,"end":3}"#,
         ] {
-            assert!(serde_json::from_str::<Span>(json).is_err(), "accepted {json}");
+            assert!(
+                serde_json::from_str::<Span>(json).is_err(),
+                "accepted {json}"
+            );
         }
     }
 }
