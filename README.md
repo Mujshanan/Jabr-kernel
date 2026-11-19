@@ -64,7 +64,7 @@ The three M0 contract decisions are recorded in the development plan: `Location`
 
 ## Development and validation
 
-See [development.md](./development.md) for the historical M0 audit record, milestones, and integration gates. The proposed shared-state contract is documented in [STATE-REVISION-SNAPSHOT-API.md](./docs/STATE-REVISION-SNAPSHOT-API.md); it supersedes the earlier blanket exclusion of generic state/revision/snapshot infrastructure once explicitly approved. See [API-COMPATIBILITY.md](./API-COMPATIBILITY.md) for the reviewed Kernel 0.1 public and serialization contract, and [crates/jabr-kernel-api/README.md](./crates/jabr-kernel-api/README.md) for direct engine-consumer guidance.
+See [development.md](./development.md) for the historical M0 audit record, milestones, and integration gates. The approved shared-state contract is documented in [STATE-REVISION-SNAPSHOT-API.md](./docs/STATE-REVISION-SNAPSHOT-API.md) and is being implemented in this branch. See [API-COMPATIBILITY.md](./API-COMPATIBILITY.md) for the reviewed Kernel 0.1 public and serialization contract, and [crates/jabr-kernel-api/README.md](./crates/jabr-kernel-api/README.md) for direct engine-consumer guidance.
 
 Run the repository checks locally:
 
