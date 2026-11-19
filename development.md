@@ -5,7 +5,7 @@
 **Status:** M0–M3 technical work complete; M4 release-readiness validation passed on 2026-11-18; explicit Kernel 0.1 acceptance remains a separate gate  
 **Implementation branch:** `feat/kernel-core-implementation-0.1`
 
-This file records the earlier 2026-11-18 Kernel 0.1 scope baseline and its M0–M4 work. Its blanket exclusion of state, revisions, and snapshots is superseded as an architecture proposal by [docs/STATE-REVISION-SNAPSHOT-API.md](./docs/STATE-REVISION-SNAPSHOT-API.md). That contract was approved on 2026-11-19 and is being implemented on the API extraction branch. Until approval, this file remains historical evidence of the earlier baseline; do not use its old exclusions to silently reject the accepted direction, and do not treat the proposal as implementation authorization.
+This file records the earlier 2026-11-18 Kernel 0.1 scope baseline and its M0–M4 work. Its blanket exclusion of state, revisions, and snapshots is superseded as an architecture proposal by [docs/STATE-REVISION-SNAPSHOT-API.md](./docs/STATE-REVISION-SNAPSHOT-API.md). That contract was approved on 2026-11-19 and implemented on the API extraction branch. This file remains historical evidence of the earlier baseline; its old exclusions are superseded by the approved contract and must not be treated as current architecture.
 
 ## 1. Locked system architecture
 
