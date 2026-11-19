@@ -30,7 +30,12 @@ impl<'de> serde::Deserialize<'de> for Span {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SpanError {
     /// End precedes start.
-    Reversed { /// Start byte. start: usize, /// End byte. end: usize },
+    Reversed {
+        /// Start byte.
+        start: usize,
+        /// End byte.
+        end: usize,
+    },
 }
 impl core::fmt::Display for SpanError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
