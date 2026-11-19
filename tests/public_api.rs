@@ -8,6 +8,8 @@ use jabr_kernel::{
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
+fn node(value: u64) -> NodeId { NodeId::new(value).unwrap() }
+
 #[test]
 fn identifiers_validate_boundaries_and_expose_stable_value_semantics() {
     assert_eq!(NodeId::new(0), Err(IdAllocationError::Zero));
@@ -93,79 +95,66 @@ fn port_identity_includes_node_and_opaque_index() {
 
 #[test]
 fn graph_handles_empty_duplicate_and_removal_operations() {
-    let mut graph = DependencyGraph::<u32>::default();
+    let mut graph = DependencyGraph::default();
     assert!(graph.is_empty());
     assert_eq!(graph.len(), 0);
-    assert_eq!(graph.topological_order().unwrap(), Vec::<u32>::new());
+    assert_eq!(graph.topological_order().unwrap(), Vec::<NodeId>::new());
 
-    graph.add_node(1);
-    graph.add_node(1);
-    graph.add_node(2);
+    graph.add_node(node(1));
+    graph.add_node(node(1));
+    graph.add_node(node(2));
     assert_eq!(graph.len(), 2);
     assert!(!graph.is_empty());
 
-    graph.add_dependency(2, 1).unwrap();
-    graph.add_dependency(2, 1).unwrap();
-    assert_eq!(graph.topological_order().unwrap(), vec![1, 2]);
+    graph.add_dependency(node(2), node(1)).unwrap();
+    graph.add_dependency(node(2), node(1)).unwrap();
+    assert_eq!(graph.topological_order().unwrap(), vec![node(1), node(2)]);
 
-    assert!(graph.remove_node(&1));
-    assert!(!graph.remove_node(&1));
+    assert!(graph.remove_node(node(1)));
+    assert!(!graph.remove_node(node(1)));
     assert_eq!(graph.len(), 1);
-    // Removing a prerequisite also removes its incoming references.
-    assert_eq!(graph.topological_order().unwrap(), vec![2]);
-    assert!(graph.remove_node(&2));
+    assert_eq!(graph.topological_order().unwrap(), vec![node(2)]);
+    assert!(graph.remove_node(node(2)));
     assert!(graph.is_empty());
 }
 
 #[test]
 fn graph_distinguishes_unknown_dependent_and_prerequisite() {
-    let mut graph = DependencyGraph::<u32>::default();
-    graph.add_node(1);
-    assert_eq!(graph.add_dependency(9, 1), Err(GraphError::UnknownNode(9)));
-    assert_eq!(graph.add_dependency(1, 9), Err(GraphError::UnknownNode(9)));
+    let mut graph = DependencyGraph::default();
+    graph.add_node(node(1));
+    assert_eq!(graph.add_dependency(node(9), node(1)), Err(GraphError::UnknownNode(node(9))));
+    assert_eq!(graph.add_dependency(node(1), node(9)), Err(GraphError::UnknownNode(node(9))));
 }
 
 #[test]
 fn graph_order_is_deterministic_across_insertion_orders() {
     let mut first = DependencyGraph::default();
-    for node in [4, 3, 2, 1] {
-        first.add_node(node);
-    }
-    first.add_dependency(4, 2).unwrap();
-    first.add_dependency(3, 1).unwrap();
+    for value in [4, 3, 2, 1] { first.add_node(node(value)); }
+    first.add_dependency(node(4), node(2)).unwrap();
+    first.add_dependency(node(3), node(1)).unwrap();
 
     let mut second = DependencyGraph::default();
-    for node in [1, 2, 3, 4] {
-        second.add_node(node);
-    }
-    second.add_dependency(3, 1).unwrap();
-    second.add_dependency(4, 2).unwrap();
+    for value in [1, 2, 3, 4] { second.add_node(node(value)); }
+    second.add_dependency(node(3), node(1)).unwrap();
+    second.add_dependency(node(4), node(2)).unwrap();
 
-    assert_eq!(first.topological_order().unwrap(), vec![1, 2, 3, 4]);
+    assert_eq!(first.topological_order().unwrap(), vec![node(1), node(2), node(3), node(4)]);
     assert_eq!(first.topological_order(), second.topological_order());
 }
 
 #[test]
-fn graph_reports_self_cycles_and_all_unresolved_nodes() {
+fn graph_reports_only_actual_self_cycle_members() {
     let mut self_cycle = DependencyGraph::default();
-    self_cycle.add_node(1);
-    self_cycle.add_dependency(1, 1).unwrap();
-    assert_eq!(
-        self_cycle.topological_order(),
-        Err(GraphError::Cycle(vec![1]))
-    );
+    self_cycle.add_node(node(1));
+    self_cycle.add_dependency(node(1), node(1)).unwrap();
+    assert_eq!(self_cycle.topological_order(), Err(GraphError::Cycle(vec![node(1)])));
 
     let mut graph = DependencyGraph::default();
-    for node in [1, 2, 3, 4, 5] {
-        graph.add_node(node);
-    }
-    graph.add_dependency(1, 2).unwrap();
-    graph.add_dependency(2, 1).unwrap();
-    graph.add_dependency(3, 2).unwrap();
-    assert_eq!(
-        graph.topological_order(),
-        Err(GraphError::Cycle(vec![1, 2, 3]))
-    );
+    for value in [1, 2, 3, 4, 5] { graph.add_node(node(value)); }
+    graph.add_dependency(node(1), node(2)).unwrap();
+    graph.add_dependency(node(2), node(1)).unwrap();
+    graph.add_dependency(node(3), node(2)).unwrap();
+    assert_eq!(graph.topological_order(), Err(GraphError::Cycle(vec![node(1), node(2)])));
 }
 
 #[test]
