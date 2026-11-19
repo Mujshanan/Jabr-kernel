@@ -9,7 +9,10 @@
 /// The fields are private so invalid zero coordinates cannot be constructed.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
-pub struct Location { line: u32, column: u32 }
+pub struct Location {
+    line: u32,
+    column: u32,
+}
 
 impl Location {
     /// Constructs a location, rejecting zero-valued coordinates.
@@ -17,22 +20,35 @@ impl Location {
     /// Validation checks the line before the column, so `(0, 0)` reports
     /// `LocationError::ZeroLine`.
     pub const fn new(line: u32, column: u32) -> Result<Self, LocationError> {
-        if line == 0 { return Err(LocationError::ZeroLine); }
-        if column == 0 { return Err(LocationError::ZeroColumn); }
+        if line == 0 {
+            return Err(LocationError::ZeroLine);
+        }
+        if column == 0 {
+            return Err(LocationError::ZeroColumn);
+        }
         Ok(Self { line, column })
     }
     /// Returns the one-based line number.
-    pub const fn line(self) -> u32 { self.line }
+    pub const fn line(self) -> u32 {
+        self.line
+    }
     /// Returns the one-based Unicode-scalar column.
-    pub const fn column(self) -> u32 { self.column }
+    pub const fn column(self) -> u32 {
+        self.column
+    }
 }
 
 #[cfg(feature = "serde")]
 impl<'de> serde::Deserialize<'de> for Location {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where D: serde::Deserializer<'de> {
+    where
+        D: serde::Deserializer<'de>,
+    {
         #[derive(serde::Deserialize)]
-        struct Repr { line: u32, column: u32 }
+        struct Repr {
+            line: u32,
+            column: u32,
+        }
         let repr = <Repr as serde::Deserialize>::deserialize(deserializer)?;
         Self::new(repr.line, repr.column).map_err(serde::de::Error::custom)
     }
@@ -71,8 +87,14 @@ mod tests {
 
     #[test]
     fn errors_have_stable_display_and_error_trait() {
-        assert_eq!(LocationError::ZeroLine.to_string(), "source line must be greater than zero");
-        assert_eq!(LocationError::ZeroColumn.to_string(), "source column must be greater than zero");
+        assert_eq!(
+            LocationError::ZeroLine.to_string(),
+            "source line must be greater than zero"
+        );
+        assert_eq!(
+            LocationError::ZeroColumn.to_string(),
+            "source column must be greater than zero"
+        );
         fn assert_error<E: std::error::Error>() {}
         assert_error::<LocationError>();
     }
@@ -97,7 +119,10 @@ mod tests {
             r#"{"line":1.5,"column":2}"#,
             r#"{"line":1}"#,
         ] {
-            assert!(serde_json::from_str::<Location>(json).is_err(), "accepted {json}");
+            assert!(
+                serde_json::from_str::<Location>(json).is_err(),
+                "accepted {json}"
+            );
         }
     }
 }
