@@ -71,6 +71,10 @@ impl std::error::Error for IdAllocationError {}
 /// Separate allocator instances have independent sequences. Use one allocator
 /// per identity namespace, or let the owning document/application layer define
 /// the namespace boundary.
+///
+/// After allocating the maximum valid ID, the internal counter contains
+/// MAX_NODE_ID + 1 as an exhausted-state sentinel. This value is never
+/// returned as a NodeId.
 #[derive(Debug, Clone)]
 pub struct NodeIdAllocator {
     next: Arc<AtomicU64>,
@@ -92,6 +96,7 @@ impl NodeIdAllocator {
     pub fn allocate(&self) -> Result<NodeId, IdAllocationError> {
         let mut current = self.next.load(Ordering::Relaxed);
         loop {
+            // This bound also guarantees that current + 1 cannot overflow u64.
             if current > MAX_NODE_ID {
                 return Err(IdAllocationError::Exhausted);
             }
@@ -112,6 +117,7 @@ impl NodeIdAllocator {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
     fn validates_range() {
         assert_eq!(NodeId::new(0), Err(IdAllocationError::Zero));
@@ -120,6 +126,47 @@ mod tests {
             Err(IdAllocationError::Exhausted)
         );
     }
+
+    #[test]
+    fn accepts_valid_boundary_ids() {
+        assert_eq!(NodeId::new(1).unwrap().get(), 1);
+        assert_eq!(NodeId::new(MAX_NODE_ID).unwrap().get(), MAX_NODE_ID);
+    }
+
+    #[test]
+    fn allocator_validates_starting_id() {
+        assert!(matches!(
+            NodeIdAllocator::new(0),
+            Err(IdAllocationError::Zero)
+        ));
+        assert_eq!(
+            NodeIdAllocator::new(MAX_NODE_ID + 1).err(),
+            Some(IdAllocationError::Exhausted)
+        );
+        assert_eq!(
+            NodeIdAllocator::new(MAX_NODE_ID)
+                .unwrap()
+                .allocate()
+                .unwrap()
+                .get(),
+            MAX_NODE_ID
+        );
+    }
+
+    #[test]
+    fn allocator_exhausts_after_maximum_id() {
+        let allocator = NodeIdAllocator::new(MAX_NODE_ID).unwrap();
+
+        assert_eq!(allocator.allocate().unwrap().get(), MAX_NODE_ID);
+        assert_eq!(allocator.allocate(), Err(IdAllocationError::Exhausted));
+        assert_eq!(allocator.allocate(), Err(IdAllocationError::Exhausted));
+    }
+
+    #[test]
+    fn display_formats_numeric_id() {
+        assert_eq!(NodeId::new(42).unwrap().to_string(), "42");
+    }
+
     #[test]
     fn clones_share_allocator_sequence() {
         let a = NodeIdAllocator::default();
@@ -127,6 +174,17 @@ mod tests {
         assert_eq!(a.allocate().unwrap().get(), 1);
         assert_eq!(b.allocate().unwrap().get(), 2);
     }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn serde_round_trips_valid_ids() {
+        let id = NodeId::new(MAX_NODE_ID).unwrap();
+        let serialized = serde_json::to_string(&id).unwrap();
+        let deserialized = serde_json::from_str::<NodeId>(&serialized).unwrap();
+
+        assert_eq!(deserialized, id);
+    }
+
     #[cfg(feature = "serde")]
     #[test]
     fn serde_rejects_unsafe_ids() {
