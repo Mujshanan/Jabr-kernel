@@ -110,6 +110,8 @@ A cycle error reports only actual cycle members, including self-loops; downstrea
 
 The graph's closure and ordering methods are generic graph algorithms, not worksheet dirty-state policy or an execution scheduler. They do not choose the dirty roots, execute expressions, publish results, or trigger recalculation. Engine decides when and how to use these primitives.
 
+The port-aware graph operations described here are the accepted target contract. Their implementation and regression coverage are tracked in PR #15; this specification does not claim that those changes have already been merged to `main`.
+
 ### 4.3 Diagnostics and spans
 
 ```rust
