@@ -1,6 +1,6 @@
 # State, Revision, and Snapshot — Kernel API Contract Proposal
 
-**Status:** Approved 2026-11-19; implementation in progress  
+**Status:** Approved and implemented 2026-11-19; CI-validated on PR #16  
 **Target:** `jabr-kernel-api` 0.1  
 **Repository:** `Mujshanan/Jabr-kernel`  
 **Date:** 2026-11-19
@@ -247,4 +247,4 @@ The following are the complete proposed 0.1 decisions to review:
 7. Do not define persistence serialization or snapshot retention in API 0.1.
 8. Keep mathematical scopes, dependency semantics, recalculation, and evaluation outside Kernel.
 
-**Approval:** The user approved all eight decisions in section 9 on 2026-11-19. Implementation is being added to `jabr-kernel-api`, with compatibility re-exports from `jabr-kernel`. The API crate owns the public generic contract types and their domain-neutral behavior; Kernel remains the architecture owner of the shared-state responsibility. The older M0/M3 blanket exclusions are historical and superseded by this accepted contract.
+**Approval and implementation:** The user approved all eight decisions in section 9 on 2026-11-19. The interfaces are implemented in `jabr-kernel-api`, with compatibility re-exports from `jabr-kernel`. The API crate owns the public generic contract types and their domain-neutral behavior; Kernel remains the architecture owner of the shared-state responsibility. The older M0/M3 blanket exclusions are historical and superseded by this accepted contract. Formatting, tests (default and Serde), Clippy, rustdoc, clean-tree verification, and Rust 1.75 checks passed in PR #16 CI run [#44462489225](https://github.com/Mujshanan/Jabr-kernel/actions/runs/44462489225).
