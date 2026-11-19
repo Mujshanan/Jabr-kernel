@@ -1,7 +1,5 @@
 //! Verify that downstream engines can depend on the standalone API crate.
-use jabr_kernel_api::{
-    Diagnostic, Envelope, Location, NodeIdAllocator, Port, Severity, Span,
-};
+use jabr_kernel_api::{Diagnostic, Envelope, Location, NodeIdAllocator, Port, Severity, Span};
 
 #[test]
 fn api_crate_exposes_contract_without_kernel_implementation() {
