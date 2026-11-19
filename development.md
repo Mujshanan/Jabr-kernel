@@ -29,12 +29,12 @@ Kernel exposes six infrastructure areas:
 | --- | --- | --- |
 | Identifiers | `NodeId`, `NodeIdAllocator`, `IdAllocationError`, `MAX_NODE_ID` | Nonzero JavaScript-safe node IDs; allocator clones share a sequence |
 | Ports | `Port` | Opaque node/port identity; no domain meaning |
-| Graph | `DependencyGraph`, `GraphError` | Generic graph operations and deterministic prerequisite-first topological ordering; no worksheet scheduling policy |
+| Graph | `DependencyGraph<N>`, `GraphError<N>` | Generic graph operations and deterministic prerequisite-first topological ordering; no worksheet scheduling policy |
 | Source coordinates | `Span`, `SpanError`, `Location`, `LocationError` | UTF-8 byte, half-open spans; one-based line and Unicode-scalar column locations |
 | Diagnostics | `Diagnostic`, `Severity` | Generic structured diagnostics; code meaning belongs to the emitting component |
 | Envelopes | `Envelope<T>`, `ENVELOPE_SCHEMA_VERSION` | Generic versioned result/diagnostic transport; unsupported schema versions are rejected on deserialization |
 
-Kernel does not parse or evaluate formulas, interpret domain dependency meaning, build worksheet graphs, own worksheet state, store calculation results, or schedule/recalculate work. Generic graph operations may compute dependent closure for explicitly supplied roots and order that closure; Engine decides which roots are dirty and what work to execute.
+Kernel does not parse or evaluate formulas, interpret domain dependency meaning, build worksheet graphs, own worksheet state, store calculation results, or schedule/recalculate work. Its current topological sort reports graph order only; Engine decides what to execute and when. Port-aware dependency replacement and dependent-closure extensions are tracked separately in PR #15.
 
 ## 4. Audit: revisions, snapshots, and result storage
 
