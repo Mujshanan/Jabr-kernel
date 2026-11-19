@@ -46,7 +46,7 @@ Kernel does not interpret domain payloads or define engine semantics.
 
 The following are not Kernel responsibilities:
 
-- Mathematical variable semantics, scopes, namespaces, and mathematical state interpretation. Generic object-state storage, revisions, and snapshots are proposed separately and are not yet implemented.
+- Mathematical variable semantics, scopes, namespaces, and mathematical state interpretation.
 - Calculation-result storage, invalidation, or caching.
 - Cross-engine graph construction or dependency interpretation.
 - Evaluation scheduling, recalculation policy, orchestration, or change publication.
@@ -64,16 +64,21 @@ The three M0 contract decisions are recorded in the development plan: `Location`
 
 ## Development and validation
 
-See [development.md](./development.md) for the historical M0 audit record, milestones, and integration gates. The approved shared-state contract is documented in [STATE-REVISION-SNAPSHOT-API.md](./docs/STATE-REVISION-SNAPSHOT-API.md) and is being implemented in this branch. See [API-COMPATIBILITY.md](./API-COMPATIBILITY.md) for the reviewed Kernel 0.1 public and serialization contract, and [crates/jabr-kernel-api/README.md](./crates/jabr-kernel-api/README.md) for direct engine-consumer guidance.
+See [development.md](./development.md) for the historical M0 audit record, milestones, and integration gates. The approved shared-state contract is implemented in this branch and documented in [STATE-REVISION-SNAPSHOT-API.md](./docs/STATE-REVISION-SNAPSHOT-API.md). CI validates both the root facade and the standalone API crate. See [API-COMPATIBILITY.md](./API-COMPATIBILITY.md) for the reviewed Kernel 0.1 public and serialization contract, and [crates/jabr-kernel-api/README.md](./crates/jabr-kernel-api/README.md) for direct engine-consumer guidance.
 
 Run the repository checks locally:
 
 ```bash
 cargo fmt --all -- --check
+cargo fmt --manifest-path crates/jabr-kernel-api/Cargo.toml -- --check
 cargo test --all-targets
 cargo test --all-targets --all-features
+cargo test --manifest-path crates/jabr-kernel-api/Cargo.toml --all-targets
+cargo test --manifest-path crates/jabr-kernel-api/Cargo.toml --all-targets --features serde
 cargo clippy --all-targets --all-features -- -D warnings
+cargo clippy --manifest-path crates/jabr-kernel-api/Cargo.toml --all-targets --all-features -- -D warnings
 cargo doc --no-deps --all-features
+cargo doc --manifest-path crates/jabr-kernel-api/Cargo.toml --no-deps --all-features
 ```
 
 Keep the crate small, independently buildable, and domain-neutral. Do not add dependencies on Math, Table, Diagram, Orchestrator, BlockSuite, Yjs, or the UI.
