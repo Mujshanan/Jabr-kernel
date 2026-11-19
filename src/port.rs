@@ -17,7 +17,9 @@ pub struct Port {
 
 impl Port {
     /// Creates a port identity.
-    pub const fn new(node_id: NodeId, index: u32) -> Self { Self { node_id, index } }
+    pub const fn new(node_id: NodeId, index: u32) -> Self {
+        Self { node_id, index }
+    }
 }
 
 #[cfg(test)]
@@ -25,14 +27,22 @@ mod tests {
     use super::*;
     use crate::NodeId;
 
-    fn id(value: u64) -> NodeId { NodeId::new(value).unwrap() }
+    fn id(value: u64) -> NodeId {
+        NodeId::new(value).unwrap()
+    }
 
     #[test]
     fn port_identity_and_order_are_node_then_index() {
         let p10 = Port::new(id(1), 0);
         let p11 = Port::new(id(1), 1);
         let p20 = Port::new(id(2), 0);
-        assert_eq!(p10, Port { node_id: id(1), index: 0 });
+        assert_eq!(
+            p10,
+            Port {
+                node_id: id(1),
+                index: 0
+            }
+        );
         assert_ne!(p10, p11);
         assert!(p10 < p11);
         assert!(p11 < p20);
