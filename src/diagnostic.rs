@@ -35,7 +35,12 @@ pub struct Diagnostic {
 impl Diagnostic {
     /// Creates a diagnostic without a source span.
     pub fn new(code: impl Into<String>, severity: Severity, message: impl Into<String>) -> Self {
-        Self { code: code.into(), severity, message: message.into(), span: None }
+        Self {
+            code: code.into(),
+            severity,
+            message: message.into(),
+            span: None,
+        }
     }
     /// Sets or replaces the source span without changing other diagnostic fields.
     pub fn with_span(mut self, span: Span) -> Self {
@@ -56,7 +61,8 @@ mod tests {
 
     #[test]
     fn with_span_sets_and_replaces_span_without_changing_other_fields() {
-        let diagnostic = Diagnostic::new("math.parse.invalid", Severity::Warning, "Unexpected token");
+        let diagnostic =
+            Diagnostic::new("math.parse.invalid", Severity::Warning, "Unexpected token");
         let first = Span::new(1, 3).unwrap();
         let second = Span::new(4, 8).unwrap();
         let updated = diagnostic.clone().with_span(first).with_span(second);
