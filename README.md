@@ -6,7 +6,7 @@ Jabr Kernel is the small, domain-neutral Rust foundation shared by the Jabr engi
 
 | Component | Responsibility |
 | --- | --- |
-| **Jabr-kernel** | Generic identifiers, opaque ports, dependency-graph primitives, source spans/locations, structured diagnostics, and versioned envelopes |
+| **jabr-kernel-api** | Versioned public contract types consumed directly by Jabr engine crates |\n| **jabr-kernel** | Kernel implementation of the public API; preserves compatibility re-exports for existing consumers |
 | **Jabr-math** | Mathematical values and quantities, units, expression syntax, parsing, AST, evaluation, mathematical types, scopes, and mathematical dependency semantics |
 | **Jabr-table** | Table document model, cell identity/content, formula text, and table-specific operations |
 | **Jabr-diagram** | Diagram document model, geometry, drawing/editing operations, and rendering semantics |
@@ -30,11 +30,11 @@ Math, Table, and Diagram are independent domain engines. Each remains independen
                      Jabr-UI
 ```
 
-Kernel must not depend on Math, Table, Diagram, Orchestrator, or UI. Do not introduce a monorepo or shared cross-repository Cargo workspace as part of Kernel 0.1.
+The implementation crate `jabr-kernel` depends on `jabr-kernel-api`; the API crate never depends on the implementation. Math, Table, Diagram, Orchestrator, and UI depend only on the API contract when they need Kernel-owned types. Kernel must not depend on those engines or application layers. The API crate is a local package within this repository, not a cross-repository workspace.
 
 ## Kernel 0.1 public scope
 
-Kernel owns exactly six infrastructure areas:
+The `jabr-kernel-api` crate owns the public definitions for six infrastructure areas; `jabr-kernel` provides their implementation where behavior is required:
 
 1. **Identifiers** — stable, domain-neutral identity and documented validity/serialization rules.
 2. **Ports** — generic endpoint identity associated with a Kernel identifier; port meaning remains opaque to Kernel.
@@ -67,7 +67,7 @@ The three M0 contract decisions are recorded in the development plan: `Location`
 
 ## Development and validation
 
-See [development.md](./development.md) for the authoritative scope, M0 audit record, milestones, and integration gates. See [API-COMPATIBILITY.md](./API-COMPATIBILITY.md) for the reviewed Kernel 0.1 public and serialization contract.
+See [development.md](./development.md) for the authoritative scope, M0 audit record, milestones, and integration gates. See [API-COMPATIBILITY.md](./API-COMPATIBILITY.md) for the reviewed Kernel 0.1 public and serialization contract, and [crates/jabr-kernel-api/README.md](./crates/jabr-kernel-api/README.md) for direct engine-consumer guidance.
 
 Run the repository checks locally:
 
