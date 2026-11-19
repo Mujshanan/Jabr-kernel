@@ -1,6 +1,6 @@
 # Jabr Kernel 0.1 API and compatibility note
 
-**Reviewed against:** `main` plus Kernel 0.1 contract hardening  
+**Reviewed against:** Kernel 0.1 implementation plus public-contract packaging decision  
 **Review date:** 2026-11-18  
 **Crate:** `jabr-kernel` 0.1.0  
 **MSRV:** Rust 1.75
@@ -9,7 +9,7 @@ This note records the public contract implemented by Kernel 0.1. It is a compati
 
 ## Package boundary
 
-Kernel is one Rust crate, `jabr-kernel`. Its documented public API is the consumer contract; private fields and private implementation details are not part of that contract. External-consumer integration tests compile against the crate as a downstream user would. A separate `jabr-kernel-api` crate is not part of Kernel 0.1.
+The accepted architecture separates the versioned public contract from its implementation: `jabr-kernel-api` defines the consumer-facing Rust contract, while `jabr-kernel` provides the implementation. Engine and domain-engine consumers must depend on `jabr-kernel-api`, never on implementation internals. This hardening PR does not itself extract or publish the API crate; that is a separate packaging implementation step. The current `jabr-kernel` integration tests remain useful implementation-level downstream tests.
 
 ## Public surface
 
@@ -46,7 +46,7 @@ Envelope schema versioning is separate from diagnostic-code ownership/versioning
 
 ## Dependency and toolchain boundary
 
-Kernel 0.1 is a standalone Rust 2021 package with Rust 1.75 as its declared minimum. Its only optional runtime dependency is Serde; `serde_json` is development-only. It has no path dependency or workspace coupling to Math, Table, Draw, Engine, or UI.
+`jabr-kernel` is a standalone Rust 2021 implementation package with Rust 1.75 as its declared minimum. Its only optional runtime dependency is Serde; `serde_json` is development-only. The public contract crate must remain domain-neutral and must not depend on Math, Table, Diagram, Engine, BlockSuite, Yjs, or UI.
 
 ## Consumer guidance
 
