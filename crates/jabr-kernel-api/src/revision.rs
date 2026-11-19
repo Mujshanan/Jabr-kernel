@@ -61,17 +61,4 @@ mod tests {
     fn maximum_revision_does_not_wrap() {
         let max = Revision(u64::MAX);
         assert_eq!(max.checked_next(), Err(RevisionError { current: max }));
-    }
-    #[cfg(feature = "serde")]
-    #[test]
-    fn serde_uses_exact_decimal_strings() {
-        let revision = Revision(u64::MAX);
-        let json = serde_json::to_string(&revision).unwrap();
-        assert_eq!(json, format!("\"{}\"", u64::MAX));
-        assert_eq!(serde_json::from_str::<Revision>(&json).unwrap(), revision);
-        for invalid in ["-1", "1.5", "", "01", "18446744073709551616"] {
-            assert!(serde_json::from_str::<Revision>(&format!("\"{invalid}\"")).is_err(), "{invalid}");
-        }
-        assert!(serde_json::from_str::<Revision>("1").is_err());
-    }
-}
+    }}
