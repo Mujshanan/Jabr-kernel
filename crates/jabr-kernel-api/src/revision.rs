@@ -16,6 +16,12 @@ impl Revision {
     /// Initial revision of a newly created state.
     pub const INITIAL: Self = Self(0);
 
+    /// Constructs a revision for internal boundary tests.
+    #[cfg(test)]
+    pub(crate) const fn from_raw_for_test(raw: u64) -> Self {
+        Self(raw)
+    }
+
     /// Returns the numeric revision.
     pub const fn get(self) -> u64 {
         self.0
