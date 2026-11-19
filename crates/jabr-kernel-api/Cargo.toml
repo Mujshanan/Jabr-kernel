@@ -1,0 +1,21 @@
+[package]
+name = "jabr-kernel-api"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+description = "Versioned, domain-neutral public contracts for Jabr Kernel"
+license = "MIT"
+
+[features]
+default = []
+serde = ["dep:serde"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"], optional = true }
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[lints.clippy]
+all = "warn"
