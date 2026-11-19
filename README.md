@@ -44,7 +44,7 @@ Kernel owns exactly six infrastructure areas:
 
 1. **Identifiers** — stable, domain-neutral identity and documented validity/serialization rules.
 2. **Ports** — generic endpoint identity associated with a Kernel identifier; port meaning remains opaque to Kernel.
-3. **Dependency graph** — generic graph representation and data-structure operations. A generic topological-order algorithm may report prerequisite-first ordering, but it is not an application scheduler.
+3. **Dependency graph** — generic port-aware graph representation and graph algorithms, including prerequisite-first ordering and deterministic dependent-closure queries for explicit roots. These operations do not decide worksheet dirty-state policy or schedule execution.
 4. **Source spans and locations** — source-independent ranges and location primitives with explicit offset and line/column conventions. `Span` uses UTF-8 byte offsets and a half-open range. `Location` uses validated one-based line and Unicode-scalar column coordinates.
 5. **Diagnostics** — generic structured diagnostics with stable owner-namespaced machine-readable codes.
 6. **Versioned envelopes** — a generic transport envelope with a fixed schema version and operation result/diagnostics. The version is read-only; deserialization rejects unsupported versions.
@@ -58,7 +58,7 @@ The following are not Kernel responsibilities:
 - Variable/assignment state, mathematical scopes, worksheet namespaces, revision counters, state lifecycle, change tracking, snapshots, or state history.
 - Calculation-result storage, invalidation, or caching.
 - Cross-engine graph construction or dependency interpretation.
-- Evaluation scheduling, recalculation policy, orchestration, or change publication.
+- Evaluation scheduling, recalculation policy, orchestration, or change publication. Generic graph closure and ordering operations do not themselves schedule or execute worksheet work.
 - Mathematical values, units, parsing, AST, evaluation, or mathematical diagnostics.
 - Table models/cells/operations or diagram models/geometry/rendering.
 - Worksheet/document ownership, BlockSuite/Yjs integration, UI behavior, or persistence policy.
