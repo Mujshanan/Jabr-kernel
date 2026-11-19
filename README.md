@@ -40,7 +40,7 @@ Kernel owns exactly these generic infrastructure areas:
 
 1. **Identifiers** — stable, domain-neutral identity and documented validity/serialization rules.
 2. **Ports** — generic endpoint identity associated with a Kernel identifier; port meaning remains opaque to Kernel.
-3. **Dependency graph** — generic port-aware graph representation and algorithms, including prerequisite-first ordering and deterministic dependent-closure queries for explicit roots. These operations do not decide worksheet dirty-state policy or schedule execution.
+3. **Dependency graph** — generic graph representation and deterministic prerequisite-first topological ordering. Graph operations do not become an application scheduler or execute worksheet work.
 4. **Source spans and locations** — source-independent ranges and location primitives with explicit offset and line/column conventions.
 5. **Diagnostics** — generic structured diagnostics with stable owner-namespaced machine-readable codes.
 6. **Versioned envelopes** — generic transport envelope with explicit schema version and operation result/diagnostics. Domain payloads remain opaque to Kernel.
