@@ -8,7 +8,7 @@ use std::collections::{BTreeMap, BTreeSet};
 /// Port identities are retained in the forward index. Scheduling is performed
 /// at node granularity, so consuming multiple ports from one prerequisite
 /// creates only one scheduling edge.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct DependencyGraph {
     prerequisites: BTreeMap<NodeId, BTreeSet<Port>>,
@@ -16,14 +16,6 @@ pub struct DependencyGraph {
     dependents: BTreeMap<NodeId, BTreeSet<NodeId>>,
 }
 
-impl Default for DependencyGraph {
-    fn default() -> Self {
-        Self {
-            prerequisites: BTreeMap::new(),
-            dependents: BTreeMap::new(),
-        }
-    }
-}
 
 impl DependencyGraph {
     /// Inserts a node if absent.
