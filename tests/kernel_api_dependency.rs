@@ -57,7 +57,7 @@ fn revision_serde_preserves_full_u64_precision_as_decimal_string() {
     for invalid in ["-1", "1.5", "\"\"", "\"18446744073709551616\""] {
         assert!(serde_json::from_str::<Revision>(invalid).is_err(), "{invalid}");
     }
-    assert_eq!(serde_json::from_str::<Revision>("1").is_err(), true);
+    assert!(serde_json::from_str::<Revision>("1").is_err());
     assert_eq!(serde_json::from_str::<Revision>("\"01\"").unwrap().get(), 1);
     assert_eq!(revision.get(), 0);
 }
