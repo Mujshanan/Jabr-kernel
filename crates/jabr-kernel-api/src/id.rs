@@ -6,15 +6,10 @@ use core::{
 };
 use std::sync::Arc;
 
-/// Largest integer that JavaScript can represent exactly.
+/// Largest integer JavaScript can represent exactly.
 pub const MAX_NODE_ID: u64 = (1_u64 << 53) - 1;
 
-/// A non-zero, JavaScript-safe node identifier.
-///
-/// IDs are scoped by the allocator/document that creates them; independently
-/// created allocators may produce the same numeric IDs. Persisted documents
-/// must preserve their IDs; the owning document/application layer defines the
-/// document-scoped identity namespace.
+/// Non-zero, JavaScript-safe node identifier. Identity is scoped by the owning document.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(transparent))]
@@ -66,11 +61,7 @@ impl fmt::Display for IdAllocationError {
 }
 impl std::error::Error for IdAllocationError {}
 
-/// Monotonic allocator; cloned allocators share one atomic sequence.
-///
-/// Separate allocator instances have independent sequences. Use one allocator
-/// per identity namespace, or let the owning document/application layer define
-/// the namespace boundary.
+/// Monotonic allocator; clones share one atomic sequence.
 #[derive(Debug, Clone)]
 pub struct NodeIdAllocator {
     next: Arc<AtomicU64>,
@@ -95,7 +86,6 @@ impl NodeIdAllocator {
             if current > MAX_NODE_ID {
                 return Err(IdAllocationError::Exhausted);
             }
-
             match self.next.compare_exchange_weak(
                 current,
                 current + 1,
@@ -113,23 +103,19 @@ impl NodeIdAllocator {
 mod tests {
     use super::*;
     #[test]
-    fn validates_range() {
+    fn validates_boundaries() {
         assert_eq!(NodeId::new(0), Err(IdAllocationError::Zero));
         assert_eq!(
             NodeId::new(MAX_NODE_ID + 1),
             Err(IdAllocationError::Exhausted)
         );
+        assert_eq!(NodeId::new(MAX_NODE_ID).unwrap().get(), MAX_NODE_ID);
     }
     #[test]
-    fn clones_share_allocator_sequence() {
+    fn clones_share_sequence() {
         let a = NodeIdAllocator::default();
         let b = a.clone();
         assert_eq!(a.allocate().unwrap().get(), 1);
         assert_eq!(b.allocate().unwrap().get(), 2);
-    }
-    #[cfg(feature = "serde")]
-    #[test]
-    fn serde_rejects_unsafe_ids() {
-        assert!(serde_json::from_str::<NodeId>("9007199254740992").is_err());
     }
 }

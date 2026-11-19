@@ -209,7 +209,10 @@ fn diagnostics_preserve_machine_code_and_human_message_separately() {
 #[test]
 fn envelopes_construct_success_and_failure_without_domain_semantics() {
     let success: Envelope<&str> = Envelope::success("opaque");
-    assert_eq!(success.schema_version, jabr_kernel::ENVELOPE_SCHEMA_VERSION);
+    assert_eq!(
+        success.schema_version(),
+        jabr_kernel::ENVELOPE_SCHEMA_VERSION
+    );
     assert_eq!(success.result, Some("opaque"));
     assert!(success.diagnostics.is_empty());
 

@@ -8,10 +8,10 @@ license = "MIT"
 
 [features]
 default = []
-serde = ["dep:serde"]
+serde = ["jabr-kernel-api/serde"]
 
 [dependencies]
-serde = { version = "1", features = ["derive"], optional = true }
+jabr-kernel-api = { path = "crates/jabr-kernel-api", version = "0.1.0", default-features = false }
 
 [dev-dependencies]
 serde_json = "1"
