@@ -1,7 +1,7 @@
 # Jabr Rust Dependency Policy
 
 **Status:** proposed dependency policy  
-**Scope:** Jabr-kernel, Jabr Math (Jabr-cli), Jabr Diagram (Jabr-draw), Jabr Table (Jabr-table), and Rust-to-UI adapters.
+**Scope:** Jabr-kernel, Jabr Math (`Jabr-math`), Jabr Diagram (`Jabr-diagram`), Jabr Table (`Jabr-table`), and Rust-to-UI adapters.
 
 This records the initial dependency audit and preferred evaluation order. It does **not** authorize adding every candidate, pin versions, or replace per-repository design decisions. Each dependency must be justified by a concrete feature and validated against the supported Rust toolchain, Windows targets, WebAssembly targets where applicable, license policy, compile time, binary size, and maintenance activity.
 
@@ -28,14 +28,14 @@ Kernel is the shared, domain-neutral foundation. Keep its dependency surface del
 | indexmap | Do not add without a concrete insertion-order requirement in a public Kernel abstraction. |
 | smallvec | Do not add without profiling evidence that small heap allocations matter. |
 
-Kernel must not depend on Math, Diagram, Table, UI, or their domain-specific libraries. It stores opaque payloads and shared state metadata; it does not become a mathematical evaluator or document renderer.
+Kernel must not depend on Math, Diagram, Table, Engine, UI, or their domain-specific libraries. It exposes only generic identity, port, graph, source-coordinate, diagnostic, and envelope contracts; worksheet state and calculation lifecycle belong to Engine.
 
-## 3. Jabr Math (Jabr-cli)
+## 3. Jabr Math (`Jabr-math`)
 
 ### Parsing and diagnostics
 
-- **Preferred first prototype:** logos for lexing plus a handwritten Pratt parser. This keeps grammar and diagnostics ownership explicit and avoids committing to a parser framework before the language grammar stabilizes.
-- **Alternative to benchmark:** chumsky, especially if parser composition and error recovery materially simplify the grammar. Review default features and transitive dependencies, including stack-growth support, before adoption.
+- **Authoritative parser:** Calcpad is the authoritative parser and worksheet-language implementation for Jabr Math. Keep it behind a Jabr-owned adapter/facade so the public Math API and worksheet execution semantics remain Jabr-owned.
+- Do not introduce logos/Pratt or chumsky as a competing authoritative parser. Reconsider parser replacement only through an explicit architecture decision supported by compatibility and diagnostic-parity tests.
 - **CLI diagnostics:** choose one of ariadne or codespan-reporting for source-labelled terminal diagnostics. Keep terminal presentation out of the core parser/evaluator API.
 
 ### Numeric foundations
@@ -61,7 +61,7 @@ Evaluate by required semantics rather than adding a numeric stack wholesale:
 - clap for command-line argument parsing.
 - Choose one interactive line editor if a REPL is required: compare reedline and rustyline. Keep either dependency in the CLI binary, not the reusable Math library.
 
-## 4. Jabr Diagram (Jabr-draw)
+## 4. Jabr Diagram (`Jabr-diagram`)
 
 Keep the diagram document model and geometry in Rust. Keep interactive presentation/rendering in the TypeScript UI using SVG/Canvas unless a measured requirement justifies a native renderer.
 
@@ -79,7 +79,7 @@ Keep the diagram document model and geometry in Rust. Keep interactive presentat
 
 Important overlap: geo's dependency graph may already include i_overlay and rstar. Inspect actual enabled features and versions before adding those crates directly. Avoid vello unless Jabr makes a deliberate move to a native renderer.
 
-## 5. Jabr Table (Jabr-table)
+## 5. Jabr Table (`Jabr-table`)
 
 - calamine: preferred initial candidate for reading XLSX and other supported spreadsheet formats.
 - csv: focused CSV import/export.
