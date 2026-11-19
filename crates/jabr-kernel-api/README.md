@@ -30,3 +30,14 @@ The crate starts at API 0.1. Public DTO and wire-format changes require explicit
 compatibility review. Envelope schema versioning is independent of crate
 versioning. Domain-specific semantics and execution policy remain with the
 owning engine.
+
+
+## Shared state, revisions, and snapshots
+
+The API also exposes generic opaque shared-state contracts:
+
+- `Revision` is a checked monotonic `u64` version. With the optional Serde feature it is encoded as a decimal string to preserve full integer precision in JavaScript clients.
+- `State<T>` stores values by `NodeId`, advances its revision on each effective assignment/removal, and does not interpret payloads.
+- `Snapshot<T>` is an immutable cloned view associated with the revision captured at creation.
+
+These facilities do not define mathematical variable semantics, scopes, dependency meaning, recalculation, result caching, persistence, or scheduling. See [the approved State/Revision/Snapshot contract](../../docs/STATE-REVISION-SNAPSHOT-API.md).
