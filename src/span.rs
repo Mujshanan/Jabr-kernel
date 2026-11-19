@@ -1,6 +1,14 @@
 //! Source-independent UTF-8 byte spans.
 
-/// Half-open UTF-8 byte range in a source document.
+/// A half-open UTF-8 byte range in a source document.
+///
+/// The range is `[start, end)`: `start` is inclusive and `end` is
+/// exclusive. Empty spans are valid. This type does not validate source length
+/// or UTF-8 character boundaries because Kernel does not own source text.
+///
+/// When transporting offsets through JavaScript `Number`, callers must keep
+/// them at or below `2^53 - 1`, or use a lossless representation such as a
+/// decimal string or fixed-width integer encoding.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct Span {
@@ -70,13 +78,10 @@ pub enum SpanError {
 impl core::fmt::Display for SpanError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            Self::Reversed { start, end } => {
-                write!(f, "span end {end} precedes start {start}")
-            }
+            Self::Reversed { start, end } => write!(f, "span end {end} precedes start {start}"),
         }
     }
 }
-
 impl std::error::Error for SpanError {}
 
 #[cfg(test)]
@@ -84,22 +89,50 @@ mod tests {
     use super::*;
 
     #[test]
-    fn invalid_ranges_are_rejected() {
-        assert!(Span::new(8, 3).is_err());
+    fn validates_half_open_ranges_and_allows_empty_spans() {
+        assert_eq!(
+            Span::new(8, 3),
+            Err(SpanError::Reversed { start: 8, end: 3 })
+        );
         let span = Span::new(3, 7).unwrap();
-        assert_eq!(span.start(), 3);
-        assert_eq!(span.end(), 7);
-        assert_eq!(span.len(), 4);
+        assert_eq!((span.start(), span.end(), span.len()), (3, 7, 4));
         assert!(!span.is_empty());
-        assert!(Span::new(3, 3).unwrap().is_empty());
+        let empty = Span::new(0, 0).unwrap();
+        assert_eq!(empty.len(), 0);
+        assert!(empty.is_empty());
+    }
+
+    #[test]
+    fn error_has_stable_display_and_error_trait() {
+        let error = SpanError::Reversed { start: 8, end: 3 };
+        assert_eq!(error.to_string(), "span end 3 precedes start 8");
+        fn assert_error<E: std::error::Error>() {}
+        assert_error::<SpanError>();
     }
 
     #[cfg(feature = "serde")]
     #[test]
-    fn serde_rejects_reversed_ranges() {
-        assert!(serde_json::from_str::<Span>(r#"{"start":8,"end":3}"#).is_err());
-        let span = Span::new(2, 5).unwrap();
-        let json = serde_json::to_string(&span).unwrap();
-        assert_eq!(serde_json::from_str::<Span>(&json).unwrap(), span);
+    fn serde_round_trips_regular_and_empty_spans() {
+        for span in [Span::new(2, 5).unwrap(), Span::new(0, 0).unwrap()] {
+            let json = serde_json::to_string(&span).unwrap();
+            assert_eq!(serde_json::from_str::<Span>(&json).unwrap(), span);
+        }
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn serde_rejects_malformed_and_reversed_spans() {
+        for json in [
+            r#"{"start":1}"#,
+            r#"{"start":"1","end":2}"#,
+            r#"{"start":-1,"end":2}"#,
+            r#"{"start":1.5,"end":2}"#,
+            r#"{"start":8,"end":3}"#,
+        ] {
+            assert!(
+                serde_json::from_str::<Span>(json).is_err(),
+                "accepted {json}"
+            );
+        }
     }
 }

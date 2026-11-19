@@ -25,18 +25,35 @@ impl Port {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::NodeIdAllocator;
+    use crate::NodeId;
+
+    fn id(value: u64) -> NodeId {
+        NodeId::new(value).unwrap()
+    }
 
     #[test]
-    fn port_identity_is_node_and_index() {
-        let node = NodeIdAllocator::default().allocate().unwrap();
+    fn port_identity_and_order_are_node_then_index() {
+        let p10 = Port::new(id(1), 0);
+        let p11 = Port::new(id(1), 1);
+        let p20 = Port::new(id(2), 0);
         assert_eq!(
-            Port::new(node, 0),
+            p10,
             Port {
-                node_id: node,
+                node_id: id(1),
                 index: 0
             }
         );
-        assert_ne!(Port::new(node, 0), Port::new(node, 1));
+        assert_ne!(p10, p11);
+        assert!(p10 < p11);
+        assert!(p11 < p20);
+        assert_eq!(p20.cmp(&p10), core::cmp::Ordering::Greater);
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn port_serde_round_trips() {
+        let port = Port::new(id(123), u32::MAX);
+        let json = serde_json::to_string(&port).unwrap();
+        assert_eq!(serde_json::from_str::<Port>(&json).unwrap(), port);
     }
 }
