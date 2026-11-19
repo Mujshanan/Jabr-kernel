@@ -6,7 +6,8 @@ Jabr Kernel is the small, domain-neutral Rust foundation shared by the Jabr engi
 
 | Component | Responsibility |
 | --- | --- |
-| **jabr-kernel-api** | Versioned public contract types consumed directly by Jabr engine crates |\n| **jabr-kernel** | Kernel implementation of the public API; preserves compatibility re-exports for existing consumers |
+| **jabr-kernel-api** | Versioned public contract types consumed directly by Jabr engine crates |
+| **jabr-kernel** | Kernel implementation of the public API; preserves compatibility re-exports for existing consumers |
 | **Jabr-math** | Mathematical values and quantities, units, expression syntax, parsing, AST, evaluation, mathematical types, scopes, and mathematical dependency semantics |
 | **Jabr-table** | Table document model, cell identity/content, formula text, and table-specific operations |
 | **Jabr-diagram** | Diagram document model, geometry, drawing/editing operations, and rendering semantics |
@@ -18,19 +19,15 @@ Math, Table, and Diagram are independent domain engines. Each remains independen
 ## Dependency direction
 
 ```text
-                 Jabr-kernel
-                /     |     \
-               v      v      v
-             Math    Table  Diagram
-                \     |     /
-                 v    v    v
-                  Orchestrator
-                       |
-                       v
-                     Jabr-UI
+                 jabr-kernel-api
+                 ^      ^      ^
+                 |      |      |
+             jabr-kernel (implementation)
+                 |
+          compatibility re-exports
 ```
 
-The implementation crate `jabr-kernel` depends on `jabr-kernel-api`; the API crate never depends on the implementation. Math, Table, Diagram, Orchestrator, and UI depend only on the API contract when they need Kernel-owned types. Kernel must not depend on those engines or application layers. The API crate is a local package within this repository, not a cross-repository workspace.
+Math, Table, Diagram, Orchestrator, and UI depend on `jabr-kernel-api` whenever they need Kernel-owned types. The implementation crate `jabr-kernel` depends on the API crate; the API crate never depends on the implementation. The API crate is a local package within this repository, not a cross-repository workspace.
 
 ## Kernel 0.1 public scope
 
